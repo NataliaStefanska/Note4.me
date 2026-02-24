@@ -41,6 +41,74 @@ const COLOR_OPTIONS = ["#6366F1","#0EA5E9","#10B981","#F59E0B","#EF4444","#8B5CF
 const SUGGESTED_TAGS = ["produkt","spotkania","strategia","rozwój","osobiste","pomysły","research","decyzje"];
 const HUB_COLORS   = ["#6366F1","#0EA5E9","#10B981","#F59E0B","#EF4444","#8B5CF6","#EC4899","#14B8A6","#F97316","#84CC16"];
 
+// ─── i18n ───────────────────────────────────────────────────────────────────
+const T = {
+  pl: {
+    loginTagline:"Twoje notatki. Twoje zasady.", loginSync:"Synchronizacja między urządzeniami",
+    loginSpaces:"Oddzielne przestrzenie robocze", loginGraph:"Graf połączeń między notatkami",
+    loginBtn:"Zaloguj się przez Google", loginLegal:"Logując się akceptujesz regulamin · Twoje dane są tylko Twoje",
+    intentQ:"Po co ta notatka?", intentSub:"Przemek pyta: jaki cel ma spełniać ta notatka?",
+    intentPh:"np. żeby nie zapomnieć decyzji ze spotkania...", intentSkip:"Pomiń", intentOk:"Zacznij pisać →",
+    taskQ:"Po co to zadanie?", taskSub:"Przemek pyta: co się zmieni gdy je zrobisz?",
+    taskPh:"np. żeby zamknąć temat z klientem przed piątkiem...", taskSkip:"Pomiń pytanie", taskNext:"Dalej →",
+    taskWhatQ:"Co konkretnie zrobisz?", taskWhatPh:"np. Wysłać email do Ani...",
+    taskBack:"← Wróć", taskAdd:"Dodaj zadanie",
+    tagPh:"Wpisz lub wybierz...", tagNone:"Brak wyników", tagCreate:"+ Utwórz",
+    smTitle:"Przestrzenie", smEdit:"Edytuj", smDone:"Gotowe", smCancel:"Anuluj",
+    smNamePh:"Nazwa przestrzeni...", smAdd:"Dodaj", smNew:"+ Nowa przestrzeń", smSave:"Zapisz",
+    tvTitle:"Zadania", tvAll:"wszystkie", tvDateAsc:"↑ data", tvDateDesc:"↓ data",
+    tvWithDone:"✓ z zrobionymi", tvOpenOnly:"tylko otwarte", tvFrom:"Od", tvTo:"Do",
+    tvClear:"Wyczyść", tvEmpty:"Brak zadań do wyświetlenia", tvNew:"+ Nowe", tvNoTitle:"Bez tytułu",
+    navNotes:"Notatki", navTasks:"Zadania", navGraph:"Graf", navSettings:"Ustawienia",
+    sbSpace:"Przestrzeń", sbTags:"Tagi", sbAll:"wszystkie",
+    sbManage:"⚙ Zarządzaj przestrzeniami", sbSynced:"Zsynchronizowano",
+    sbStale1:"notatka czeka na przegląd", sbStaleN:"notatki czekają na przegląd",
+    listSearch:"Szukaj...", listNew:"+ Nowa", listEmpty:"Brak notatek · stwórz pierwszą →", listNoTitle:"Bez tytułu",
+    edBack:"← Wróć", edSave:"Zapisz", edTags:"Tagi", edTasks:"Zadania",
+    edAddTask:"Dodaj zadanie...", edStale:"dni. Nadal potrzebna?",
+    edKeep:"Zostaw", edDelete:"Usuń", edTitlePh:"Tytuł...",
+    edContentPh:"Pisz to co ważne, nie wszystko co możliwe.",
+    graphHintM:"Dotknij węzła · 🟡 = przegląd",
+    graphHintD:"Przeciągaj węzły · kliknij by otworzyć · 🟡 = czeka na przegląd",
+    setTitle:"Ustawienia", setLang:"Język", setPolish:"Polski", setEnglish:"English",
+    setData:"Synchronizacja danych", setDataDesc:"Dane zapisywane lokalnie w przeglądarce. Aby zsynchronizować z kontem Google, zalecamy integrację z Firebase (Firestore + Auth).",
+    setProfile:"Profil", setLogout:"Wyloguj się",
+    setAbout:"O aplikacji", setAboutDesc:"Note.io — minimalistyczne notatki z grafem połączeń.",
+  },
+  en: {
+    loginTagline:"Your notes. Your rules.", loginSync:"Cross-device synchronization",
+    loginSpaces:"Separate workspaces", loginGraph:"Connection graph between notes",
+    loginBtn:"Sign in with Google", loginLegal:"By signing in you accept the terms · Your data is yours only",
+    intentQ:"What is this note for?", intentSub:"Przemek asks: what purpose should this note serve?",
+    intentPh:"e.g. to not forget decisions from the meeting...", intentSkip:"Skip", intentOk:"Start writing →",
+    taskQ:"What is this task for?", taskSub:"Przemek asks: what will change when you do it?",
+    taskPh:"e.g. to close the issue with the client before Friday...", taskSkip:"Skip question", taskNext:"Next →",
+    taskWhatQ:"What exactly will you do?", taskWhatPh:"e.g. Send email to Anna...",
+    taskBack:"← Back", taskAdd:"Add task",
+    tagPh:"Type or choose...", tagNone:"No results", tagCreate:"+ Create",
+    smTitle:"Spaces", smEdit:"Edit", smDone:"Done", smCancel:"Cancel",
+    smNamePh:"Space name...", smAdd:"Add", smNew:"+ New space", smSave:"Save",
+    tvTitle:"Tasks", tvAll:"all", tvDateAsc:"↑ date", tvDateDesc:"↓ date",
+    tvWithDone:"✓ with done", tvOpenOnly:"open only", tvFrom:"From", tvTo:"To",
+    tvClear:"Clear", tvEmpty:"No tasks to display", tvNew:"+ New", tvNoTitle:"Untitled",
+    navNotes:"Notes", navTasks:"Tasks", navGraph:"Graph", navSettings:"Settings",
+    sbSpace:"Space", sbTags:"Tags", sbAll:"all",
+    sbManage:"⚙ Manage spaces", sbSynced:"Synchronized",
+    sbStale1:"note awaits review", sbStaleN:"notes await review",
+    listSearch:"Search...", listNew:"+ New", listEmpty:"No notes · create your first →", listNoTitle:"Untitled",
+    edBack:"← Back", edSave:"Save", edTags:"Tags", edTasks:"Tasks",
+    edAddTask:"Add task...", edStale:"days. Still needed?",
+    edKeep:"Keep", edDelete:"Delete", edTitlePh:"Title...",
+    edContentPh:"Write what matters, not everything possible.",
+    graphHintM:"Tap a node · 🟡 = review",
+    graphHintD:"Drag nodes · click to open · 🟡 = awaits review",
+    setTitle:"Settings", setLang:"Language", setPolish:"Polski", setEnglish:"English",
+    setData:"Data sync", setDataDesc:"Data saved locally in the browser. To sync with a Google account, we recommend Firebase integration (Firestore + Auth).",
+    setProfile:"Profile", setLogout:"Log out",
+    setAbout:"About", setAboutDesc:"Note.io — minimalist notes with a connection graph.",
+  },
+};
+
 // ─── Hook ──────────────────────────────────────────────────────────────────
 function useIsMobile() {
   const [v, set] = useState(() => window.innerWidth < 640);
@@ -53,16 +121,16 @@ function useIsMobile() {
 }
 
 // ─── Login ─────────────────────────────────────────────────────────────────
-function LoginScreen({ onLogin }) {
+function LoginScreen({ onLogin, t }) {
   return (
     <div style={ls.wrap}>
       <div style={ls.card}>
         <div style={ls.logoRow}><div style={ls.logoBox}>N</div><span style={ls.logoName}>Note.io</span></div>
-        <div style={ls.tagline}>Twoje notatki. Twoje zasady.</div>
+        <div style={ls.tagline}>{t.loginTagline}</div>
         <div style={ls.feats}>
-          <div style={ls.feat}><span>⚡</span> Synchronizacja między urządzeniami</div>
-          <div style={ls.feat}><span>🗂️</span> Oddzielne przestrzenie robocze</div>
-          <div style={ls.feat}><span>🔗</span> Graf połączeń między notatkami</div>
+          <div style={ls.feat}><span>⚡</span> {t.loginSync}</div>
+          <div style={ls.feat}><span>🗂️</span> {t.loginSpaces}</div>
+          <div style={ls.feat}><span>🔗</span> {t.loginGraph}</div>
         </div>
         <button style={ls.btn} onClick={onLogin}>
           <svg width="18" height="18" viewBox="0 0 18 18">
@@ -71,29 +139,29 @@ function LoginScreen({ onLogin }) {
             <path fill="#FBBC05" d="M4.5 10.52a4.8 4.8 0 0 1 0-3.04V5.41H1.83a8 8 0 0 0 0 7.18l2.67-2.07z"/>
             <path fill="#EA4335" d="M8.98 4.18c1.17 0 2.23.4 3.06 1.2l2.3-2.3A8 8 0 0 0 1.83 5.4L4.5 7.49a4.77 4.77 0 0 1 4.48-3.3z"/>
           </svg>
-          Zaloguj się przez Google
+          {t.loginBtn}
         </button>
-        <div style={ls.legal}>Logując się akceptujesz regulamin · Twoje dane są tylko Twoje</div>
+        <div style={ls.legal}>{t.loginLegal}</div>
       </div>
     </div>
   );
 }
 
 // ─── Intent Prompt (notatka) ────────────────────────────────────────────────
-function IntentPrompt({ onConfirm, onSkip }) {
+function IntentPrompt({ onConfirm, onSkip, t }) {
   const [val, setVal] = useState("");
   return (
     <div style={m.overlay}>
       <div style={m.box}>
-        <div style={m.q}>Po co ta notatka?</div>
-        <div style={m.sub}>Przemek pyta: jaki cel ma spełniać ta notatka?</div>
-        <input style={m.inp} autoFocus placeholder="np. żeby nie zapomnieć decyzji ze spotkania..."
+        <div style={m.q}>{t.intentQ}</div>
+        <div style={m.sub}>{t.intentSub}</div>
+        <input style={m.inp} autoFocus placeholder={t.intentPh}
           value={val} onChange={e => setVal(e.target.value)}
           onKeyDown={e => { if (e.key === "Enter" && val.trim()) onConfirm(val); }} />
         <div style={m.row}>
-          <button style={m.skip} onClick={onSkip}>Pomiń</button>
+          <button style={m.skip} onClick={onSkip}>{t.intentSkip}</button>
           <button style={{ ...m.ok, opacity: val.trim() ? 1 : 0.4 }}
-            onClick={() => val.trim() && onConfirm(val)}>Zacznij pisać →</button>
+            onClick={() => val.trim() && onConfirm(val)}>{t.intentOk}</button>
         </div>
       </div>
     </div>
@@ -101,7 +169,7 @@ function IntentPrompt({ onConfirm, onSkip }) {
 }
 
 // ─── Task Intent Modal ──────────────────────────────────────────────────────
-function TaskIntentModal({ color, onConfirm, onClose }) {
+function TaskIntentModal({ color, onConfirm, onClose, t }) {
   const [step, setStep] = useState("why");
   const [why, setWhy] = useState("");
   const [what, setWhat] = useState("");
@@ -122,27 +190,27 @@ function TaskIntentModal({ color, onConfirm, onClose }) {
       <div style={{ ...m.box, maxWidth: 420 }} onClick={e => e.stopPropagation()}>
         {step === "why" ? (
           <div>
-            <div style={m.q}>Po co to zadanie?</div>
-            <div style={m.sub}>Przemek pyta: co się zmieni gdy je zrobisz?</div>
+            <div style={m.q}>{t.taskQ}</div>
+            <div style={m.sub}>{t.taskSub}</div>
             <textarea style={{ ...m.inp, minHeight: 72, resize: "none" }}
-              autoFocus placeholder="np. żeby zamknąć temat z klientem przed piątkiem..."
+              autoFocus placeholder={t.taskPh}
               value={why} onChange={e => setWhy(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); goNext(); } }} />
             <div style={m.row}>
-              <button style={m.skip} onClick={goNext}>Pomiń pytanie</button>
-              <button style={{ ...m.ok, background: color }} onClick={goNext}>Dalej →</button>
+              <button style={m.skip} onClick={goNext}>{t.taskSkip}</button>
+              <button style={{ ...m.ok, background: color }} onClick={goNext}>{t.taskNext}</button>
             </div>
           </div>
         ) : (
           <div>
-            <div style={m.q}>Co konkretnie zrobisz?</div>
+            <div style={m.q}>{t.taskWhatQ}</div>
             {why.trim() && <div style={{ fontSize:12, color:"#A8A29E", fontStyle:"italic", marginBottom:8 }}>→ {why}</div>}
-            <input ref={whatRef} style={m.inp} placeholder="np. Wysłać email do Ani..."
+            <input ref={whatRef} style={m.inp} placeholder={t.taskWhatPh}
               value={what} onChange={e => setWhat(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter") finish(); }} />
             <div style={m.row}>
-              <button style={m.skip} onClick={() => setStep("why")}>← Wróć</button>
-              <button style={{ ...m.ok, opacity: what.trim() ? 1 : 0.4, background: color }} onClick={finish}>Dodaj zadanie</button>
+              <button style={m.skip} onClick={() => setStep("why")}>{t.taskBack}</button>
+              <button style={{ ...m.ok, opacity: what.trim() ? 1 : 0.4, background: color }} onClick={finish}>{t.taskAdd}</button>
             </div>
           </div>
         )}
@@ -152,26 +220,26 @@ function TaskIntentModal({ color, onConfirm, onClose }) {
 }
 
 // ─── Tag Picker ─────────────────────────────────────────────────────────────
-function TagPicker({ active, onSelect, onClose }) {
+function TagPicker({ active, onSelect, onClose, t }) {
   const [q, setQ] = useState("");
   const ref = useRef();
   useEffect(() => { if (ref.current) ref.current.focus(); }, []);
-  const list = SUGGESTED_TAGS.filter(t => !active.includes(t) && t.includes(q.toLowerCase()));
+  const list = SUGGESTED_TAGS.filter(tg => !active.includes(tg) && tg.includes(q.toLowerCase()));
   const canCreate = q.trim() && !active.includes(q.trim()) && !SUGGESTED_TAGS.includes(q.trim());
   return (
     <div style={s.pickerWrap}>
-      <input ref={ref} style={s.pickerInput} placeholder="Wpisz lub wybierz..."
+      <input ref={ref} style={s.pickerInput} placeholder={t.tagPh}
         value={q} onChange={e => setQ(e.target.value)}
         onKeyDown={e => { if (e.key === "Enter" && q.trim()) onSelect(q.trim()); if (e.key === "Escape") onClose(); }} />
-      {list.map(t => <button key={t} style={s.pickerItem} onClick={() => onSelect(t)}>{t}</button>)}
-      {canCreate && <button style={{ ...s.pickerItem, color:"#6366F1" }} onClick={() => onSelect(q.trim())}>+ Utwórz „{q.trim()}"</button>}
-      {!list.length && !canCreate && <div style={{ fontSize:11, color:"#A8A29E", padding:"4px 8px" }}>Brak wyników</div>}
+      {list.map(tg => <button key={tg} style={s.pickerItem} onClick={() => onSelect(tg)}>{tg}</button>)}
+      {canCreate && <button style={{ ...s.pickerItem, color:"#6366F1" }} onClick={() => onSelect(q.trim())}>{t.tagCreate} „{q.trim()}"</button>}
+      {!list.length && !canCreate && <div style={{ fontSize:11, color:"#A8A29E", padding:"4px 8px" }}>{t.tagNone}</div>}
     </div>
   );
 }
 
 // ─── Space Manager ───────────────────────────────────────────────────────────
-function SpaceManager({ spaces, onSave, onClose }) {
+function SpaceManager({ spaces, onSave, onClose, t }) {
   const [list, setList] = useState(spaces.map(sp => ({ ...sp })));
   const [editId, setEditId] = useState(null);
   const [adding, setAdding] = useState(false);
@@ -183,7 +251,7 @@ function SpaceManager({ spaces, onSave, onClose }) {
     <div style={m.overlay}>
       <div style={{ ...m.box, width:480, gap:14 }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-          <span style={{ fontSize:17, fontWeight:700 }}>Przestrzenie</span>
+          <span style={{ fontSize:17, fontWeight:700 }}>{t.smTitle}</span>
           <button style={s.iconBtn} onClick={onClose}>✕</button>
         </div>
         <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
@@ -195,8 +263,8 @@ function SpaceManager({ spaces, onSave, onClose }) {
                   <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>{COLOR_OPTIONS.map(c => <div key={c} style={{ ...s.cBtn, background:c, ...(sp.color===c?s.cBtnA:{}) }} onClick={() => upd(sp.id,"color",c)} />)}</div>
                   <input style={s.smInp} value={sp.name} onChange={e => upd(sp.id,"name",e.target.value)} />
                   <div style={{ display:"flex", gap:8 }}>
-                    <button style={s.smOk} onClick={() => setEditId(null)}>Gotowe</button>
-                    <button style={s.smCan} onClick={() => setEditId(null)}>Anuluj</button>
+                    <button style={s.smOk} onClick={() => setEditId(null)}>{t.smDone}</button>
+                    <button style={s.smCan} onClick={() => setEditId(null)}>{t.smCancel}</button>
                   </div>
                 </div>
               ) : (
@@ -205,7 +273,7 @@ function SpaceManager({ spaces, onSave, onClose }) {
                     <div style={{ width:30, height:30, borderRadius:7, background:sp.color+"22", display:"flex", alignItems:"center", justifyContent:"center", fontSize:16 }}>{sp.emoji}</div>
                     <span style={{ fontSize:14, fontWeight:500 }}>{sp.name}</span>
                   </div>
-                  <button style={s.smEditBtn} onClick={() => setEditId(sp.id)}>Edytuj</button>
+                  <button style={s.smEditBtn} onClick={() => setEditId(sp.id)}>{t.smEdit}</button>
                   <button style={s.iconBtn} onClick={() => setList(l => l.filter(x => x.id !== sp.id))}>✕</button>
                 </>
               )}
@@ -215,18 +283,18 @@ function SpaceManager({ spaces, onSave, onClose }) {
             <div style={{ display:"flex", flexDirection:"column", gap:10, padding:12, borderRadius:8, background:"#FAFAF9", border:"1px dashed #E7E5E4" }}>
               <div style={{ display:"flex", flexWrap:"wrap", gap:4 }}>{EMOJI_OPTIONS.map(e => <button key={e} style={{ ...s.eBtn, ...(nEmoji===e?s.eBtnA:{}) }} onClick={() => setNEmoji(e)}>{e}</button>)}</div>
               <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>{COLOR_OPTIONS.map(c => <div key={c} style={{ ...s.cBtn, background:c, ...(nColor===c?s.cBtnA:{}) }} onClick={() => setNColor(c)} />)}</div>
-              <input style={s.smInp} placeholder="Nazwa przestrzeni..." value={nName} onChange={e => setNName(e.target.value)} />
+              <input style={s.smInp} placeholder={t.smNamePh} value={nName} onChange={e => setNName(e.target.value)} />
               <div style={{ display:"flex", gap:8 }}>
-                <button style={s.smOk} onClick={() => { if (nName.trim()) { setList(l => [...l, { id:"s"+Date.now(), name:nName, emoji:nEmoji, color:nColor }]); setAdding(false); setNName(""); } }}>Dodaj</button>
-                <button style={s.smCan} onClick={() => setAdding(false)}>Anuluj</button>
+                <button style={s.smOk} onClick={() => { if (nName.trim()) { setList(l => [...l, { id:"s"+Date.now(), name:nName, emoji:nEmoji, color:nColor }]); setAdding(false); setNName(""); } }}>{t.smAdd}</button>
+                <button style={s.smCan} onClick={() => setAdding(false)}>{t.smCancel}</button>
               </div>
             </div>
           ) : (
-            <button style={{ ...s.smCan, border:"1px dashed #D6D3D1", color:"#A8A29E", padding:10 }} onClick={() => setAdding(true)}>+ Nowa przestrzeń</button>
+            <button style={{ ...s.smCan, border:"1px dashed #D6D3D1", color:"#A8A29E", padding:10 }} onClick={() => setAdding(true)}>{t.smNew}</button>
           )}
         </div>
         <div style={{ display:"flex", justifyContent:"flex-end" }}>
-          <button style={s.smOk} onClick={() => onSave(list)}>Zapisz</button>
+          <button style={s.smOk} onClick={() => onSave(list)}>{t.smSave}</button>
         </div>
       </div>
     </div>
@@ -234,13 +302,14 @@ function SpaceManager({ spaces, onSave, onClose }) {
 }
 
 // ─── Tasks View ───────────────────────────────────────────────────────────────
-function TasksView({ notes, color, allTags, onOpenNote, onCreate, onToggleTask, standaloneTasks, onToggleStandaloneTask }) {
+function TasksView({ notes, color, allTags, onOpenNote, onCreate, onToggleTask, standaloneTasks, onToggleStandaloneTask, t }) {
   const [tag, setTag] = useState(null);
   const [sort, setSort] = useState("desc");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [showDate, setShowDate] = useState(false);
   const [showDone, setShowDone] = useState(true);
+  const ALL = t.tvAll;
 
   const noteTasks = notes
     .filter(n => {
@@ -250,86 +319,86 @@ function TasksView({ notes, color, allTags, onOpenNote, onCreate, onToggleTask, 
       return mt && mf && mtd;
     })
     .flatMap(n => n.tasks
-      .filter(t => showDone || !t.done)
-      .map(t => ({ ...t, noteTitle:n.title, noteDate:n.updatedAt, noteTags:n.tags, note:n, standalone:false }))
+      .filter(tk => showDone || !tk.done)
+      .map(tk => ({ ...tk, noteTitle:n.title, noteDate:n.updatedAt, noteTags:n.tags, note:n, standalone:false }))
     );
 
   const standaloneItems = (standaloneTasks || [])
-    .filter(t => showDone || !t.done)
-    .filter(t => {
-      const mf = from ? t.createdAt >= from : true;
-      const mtd = to ? t.createdAt <= to : true;
+    .filter(tk => showDone || !tk.done)
+    .filter(tk => {
+      const mf = from ? tk.createdAt >= from : true;
+      const mtd = to ? tk.createdAt <= to : true;
       return mf && mtd;
     })
-    .map(t => ({ ...t, noteTitle:null, noteDate:t.createdAt, noteTags:[], note:null, standalone:true }));
+    .map(tk => ({ ...tk, noteTitle:null, noteDate:tk.createdAt, noteTags:[], note:null, standalone:true }));
 
   const tasks = [...noteTasks, ...standaloneItems]
     .sort((a,b) => sort==="desc" ? b.noteDate.localeCompare(a.noteDate) : a.noteDate.localeCompare(b.noteDate));
 
-  const doneN = tasks.filter(t => t.done).length;
+  const doneN = tasks.filter(tk => tk.done).length;
 
   return (
     <div style={{ display:"flex", flexDirection:"column", height:"100%" }}>
       <div style={s.tvHead}>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          <span style={{ fontSize:18, fontWeight:700, letterSpacing:"-0.02em" }}>Zadania</span>
+          <span style={{ fontSize:18, fontWeight:700, letterSpacing:"-0.02em" }}>{t.tvTitle}</span>
           <span style={s.badge}>{doneN}/{tasks.length}</span>
           <div style={{ flex:1 }} />
-          <button style={{ ...s.ctrlBtn, background:color, color:"#fff", border:"none" }} onClick={onCreate}>+ Nowe</button>
+          <button style={{ ...s.ctrlBtn, background:color, color:"#fff", border:"none" }} onClick={onCreate}>{t.tvNew}</button>
         </div>
         <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
-          {["wszystkie", ...allTags].map(t => {
-            const a = t==="wszystkie" ? tag===null : tag===t;
+          {[ALL, ...allTags].map(tg => {
+            const a = tg===ALL ? tag===null : tag===tg;
             return (
-              <button key={t} style={{ ...s.tagChip, ...(a?{background:color+"22",color,borderColor:color+"44"}:{}) }}
-                onClick={() => setTag(t==="wszystkie" ? null : (tag===t ? null : t))}>
-                {t}
+              <button key={tg} style={{ ...s.tagChip, ...(a?{background:color+"22",color,borderColor:color+"44"}:{}) }}
+                onClick={() => setTag(tg===ALL ? null : (tag===tg ? null : tg))}>
+                {tg}
               </button>
             );
           })}
         </div>
         <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
           <button style={{ ...s.ctrlBtn, ...(sort==="desc"?{color}:{}) }} onClick={() => setSort(v => v==="desc"?"asc":"desc")}>
-            {sort==="desc" ? "↓ data" : "↑ data"}
+            {sort==="desc" ? t.tvDateDesc : t.tvDateAsc}
           </button>
           <button style={{ ...s.ctrlBtn, ...(showDate||from||to?{color,background:color+"15"}:{}) }} onClick={() => setShowDate(v => !v)}>📅</button>
           <button style={{ ...s.ctrlBtn, ...(showDone?{}:{color,background:color+"15"}) }} onClick={() => setShowDone(v => !v)}>
-            {showDone ? "✓ z zrobionymi" : "tylko otwarte"}
+            {showDone ? t.tvWithDone : t.tvOpenOnly}
           </button>
         </div>
         {showDate && (
           <div style={{ display:"flex", gap:12, flexWrap:"wrap", alignItems:"center" }}>
             <div style={{ display:"flex", gap:6, alignItems:"center" }}>
-              <span style={{ fontSize:11, color:"#A8A29E" }}>Od</span>
+              <span style={{ fontSize:11, color:"#A8A29E" }}>{t.tvFrom}</span>
               <input type="date" style={s.dateInp} value={from} onChange={e => setFrom(e.target.value)} />
             </div>
             <div style={{ display:"flex", gap:6, alignItems:"center" }}>
-              <span style={{ fontSize:11, color:"#A8A29E" }}>Do</span>
+              <span style={{ fontSize:11, color:"#A8A29E" }}>{t.tvTo}</span>
               <input type="date" style={s.dateInp} value={to} onChange={e => setTo(e.target.value)} />
             </div>
-            {(from||to) && <button style={s.clearBtn} onClick={() => { setFrom(""); setTo(""); }}>Wyczyść</button>}
+            {(from||to) && <button style={s.clearBtn} onClick={() => { setFrom(""); setTo(""); }}>{t.tvClear}</button>}
           </div>
         )}
       </div>
       <div style={s.tvList}>
-        {tasks.length === 0 && <div style={s.empty}>Brak zadań do wyświetlenia</div>}
-        {tasks.map((t, i) => (
-          <div key={t.id + "-" + i} style={s.tvRow}>
-            <div style={{ ...s.chk, ...(t.done?{background:color,borderColor:color}:{}) }} onClick={() => t.standalone ? onToggleStandaloneTask(t.id) : onToggleTask(t.note.id, t.id)}>
-              {t.done && <span style={{ color:"#fff", fontSize:10 }}>✓</span>}
+        {tasks.length === 0 && <div style={s.empty}>{t.tvEmpty}</div>}
+        {tasks.map((tk, i) => (
+          <div key={tk.id + "-" + i} style={s.tvRow}>
+            <div style={{ ...s.chk, ...(tk.done?{background:color,borderColor:color}:{}) }} onClick={() => tk.standalone ? onToggleStandaloneTask(tk.id) : onToggleTask(tk.note.id, tk.id)}>
+              {tk.done && <span style={{ color:"#fff", fontSize:10 }}>✓</span>}
             </div>
             <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ fontSize:14, fontWeight:500, textDecoration:t.done?"line-through":"none", color:t.done?"#A8A29E":"#1C1917" }}>{t.text}</div>
-              {t.standalone ? (
+              <div style={{ fontSize:14, fontWeight:500, textDecoration:tk.done?"line-through":"none", color:tk.done?"#A8A29E":"#1C1917" }}>{tk.text}</div>
+              {tk.standalone ? (
                 <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", marginTop:3 }}>
-                  <span style={{ fontSize:11, color:"#A8A29E" }}>{t.noteDate}</span>
-                  {t.intent && <span style={{ fontSize:11, fontStyle:"italic", color:"#A8A29E" }}>→ {t.intent}</span>}
+                  <span style={{ fontSize:11, color:"#A8A29E" }}>{tk.noteDate}</span>
+                  {tk.intent && <span style={{ fontSize:11, fontStyle:"italic", color:"#A8A29E" }}>→ {tk.intent}</span>}
                 </div>
               ) : (
-                <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", marginTop:3, cursor:"pointer" }} onClick={() => onOpenNote(t.note)}>
-                  <span style={{ fontSize:11, fontStyle:"italic", color }}>{"\u2197"} {t.noteTitle||"Bez tytułu"}</span>
-                  <span style={{ fontSize:11, color:"#A8A29E" }}>{t.noteDate}</span>
-                  {t.noteTags.map(tg => <span key={tg} style={s.tinyTag}>{tg}</span>)}
+                <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", marginTop:3, cursor:"pointer" }} onClick={() => onOpenNote(tk.note)}>
+                  <span style={{ fontSize:11, fontStyle:"italic", color }}>{"\u2197"} {tk.noteTitle||t.tvNoTitle}</span>
+                  <span style={{ fontSize:11, color:"#A8A29E" }}>{tk.noteDate}</span>
+                  {tk.noteTags.map(tg => <span key={tg} style={s.tinyTag}>{tg}</span>)}
                 </div>
               )}
             </div>
@@ -527,11 +596,12 @@ function ForceGraph({ notes, spaceColor, onOpenNote }) {
 // ─── App ─────────────────────────────────────────────────────────────────────
 export default function NoteIO() {
   // ALL hooks before any return
+  const [lang,        setLang]        = useState(() => { try { return localStorage.getItem("noteio_lang") || "pl"; } catch { return "pl"; } });
   const [loggedIn,    setLoggedIn]    = useState(false);
-  const [spaces,      setSpaces]      = useState(INITIAL_SPACES);
-  const [activeSpace, setActiveSpace] = useState("s1");
-  const [allNotes,    setAllNotes]    = useState(INITIAL_NOTES);
-  const [standaloneTasks, setStandaloneTasks] = useState({});
+  const [spaces,      setSpaces]      = useState(() => { try { const d = localStorage.getItem("noteio_spaces"); return d ? JSON.parse(d) : INITIAL_SPACES; } catch { return INITIAL_SPACES; } });
+  const [activeSpace, setActiveSpace] = useState(() => { try { return localStorage.getItem("noteio_activeSpace") || "s1"; } catch { return "s1"; } });
+  const [allNotes,    setAllNotes]    = useState(() => { try { const d = localStorage.getItem("noteio_notes"); return d ? JSON.parse(d) : INITIAL_NOTES; } catch { return INITIAL_NOTES; } });
+  const [standaloneTasks, setStandaloneTasks] = useState(() => { try { const d = localStorage.getItem("noteio_tasks"); return d ? JSON.parse(d) : {}; } catch { return {}; } });
   const [view,        setView]        = useState("list");
   const [active,      setActive]      = useState(null);
   const [search,      setSearch]      = useState("");
@@ -549,6 +619,14 @@ export default function NoteIO() {
   const [showDrawer,  setShowDrawer]  = useState(false);
   const isMobile = useIsMobile();
   const titleRef = useRef();
+  const t = T[lang] || T.pl;
+
+  // ─── localStorage persistence ───────────────────────────────────────────
+  useEffect(() => { try { localStorage.setItem("noteio_lang", lang); } catch {} }, [lang]);
+  useEffect(() => { try { localStorage.setItem("noteio_spaces", JSON.stringify(spaces)); } catch {} }, [spaces]);
+  useEffect(() => { try { localStorage.setItem("noteio_activeSpace", activeSpace); } catch {} }, [activeSpace]);
+  useEffect(() => { try { localStorage.setItem("noteio_notes", JSON.stringify(allNotes)); } catch {} }, [allNotes]);
+  useEffect(() => { try { localStorage.setItem("noteio_tasks", JSON.stringify(standaloneTasks)); } catch {} }, [standaloneTasks]);
 
   const notes  = allNotes[activeSpace] || [];
   const space  = spaces.find(sp => sp.id===activeSpace) || spaces[0];
@@ -609,15 +687,18 @@ export default function NoteIO() {
   }
 
   // Conditional return AFTER all hooks
-  if (!loggedIn) return <LoginScreen onLogin={()=>setLoggedIn(true)} />;
+  if (!loggedIn) return <LoginScreen onLogin={()=>setLoggedIn(true)} t={t} />;
 
   const NAV = [
-    { id:"list",  label:"Notatki", icon:<svg width="20" height="20" viewBox="0 0 13 13" fill="none"><rect x="1" y="1.5" width="11" height="1.4" rx=".7" fill="currentColor"/><rect x="1" y="5.5" width="11" height="1.4" rx=".7" fill="currentColor"/><rect x="1" y="9.5" width="7" height="1.4" rx=".7" fill="currentColor"/></svg> },
-    { id:"tasks", label:"Zadania", icon:<svg width="20" height="20" viewBox="0 0 13 13" fill="none"><rect x="1" y="1" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="1.2"/><path d="M3.5 6.5l2 2 4-4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg> },
-    { id:"graph", label:"Graf",    icon:<svg width="20" height="20" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="1.8" stroke="currentColor" strokeWidth="1.3"/><circle cx="2" cy="2.5" r="1.3" stroke="currentColor" strokeWidth="1.1"/><circle cx="11" cy="2.5" r="1.3" stroke="currentColor" strokeWidth="1.1"/><circle cx="6.5" cy="11.5" r="1.3" stroke="currentColor" strokeWidth="1.1"/><line x1="3" y1="3.3" x2="5.5" y2="5.5" stroke="currentColor" strokeWidth=".9"/><line x1="10" y1="3.3" x2="7.5" y2="5.5" stroke="currentColor" strokeWidth=".9"/><line x1="6.5" y1="8.3" x2="6.5" y2="10.2" stroke="currentColor" strokeWidth=".9"/></svg> },
+    { id:"list",  label:t.navNotes, icon:<svg width="20" height="20" viewBox="0 0 13 13" fill="none"><rect x="1" y="1.5" width="11" height="1.4" rx=".7" fill="currentColor"/><rect x="1" y="5.5" width="11" height="1.4" rx=".7" fill="currentColor"/><rect x="1" y="9.5" width="7" height="1.4" rx=".7" fill="currentColor"/></svg> },
+    { id:"tasks", label:t.navTasks, icon:<svg width="20" height="20" viewBox="0 0 13 13" fill="none"><rect x="1" y="1" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="1.2"/><path d="M3.5 6.5l2 2 4-4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg> },
+    { id:"graph", label:t.navGraph, icon:<svg width="20" height="20" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="1.8" stroke="currentColor" strokeWidth="1.3"/><circle cx="2" cy="2.5" r="1.3" stroke="currentColor" strokeWidth="1.1"/><circle cx="11" cy="2.5" r="1.3" stroke="currentColor" strokeWidth="1.1"/><circle cx="6.5" cy="11.5" r="1.3" stroke="currentColor" strokeWidth="1.1"/><line x1="3" y1="3.3" x2="5.5" y2="5.5" stroke="currentColor" strokeWidth=".9"/><line x1="10" y1="3.3" x2="7.5" y2="5.5" stroke="currentColor" strokeWidth=".9"/><line x1="6.5" y1="8.3" x2="6.5" y2="10.2" stroke="currentColor" strokeWidth=".9"/></svg> },
+    { id:"settings", label:t.navSettings, icon:<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.3"/><path d="M10 1.5v2M10 16.5v2M1.5 10h2M16.5 10h2M4.2 4.2l1.4 1.4M14.4 14.4l1.4 1.4M4.2 15.8l1.4-1.4M14.4 5.6l1.4-1.4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg> },
   ];
 
   function SidebarBody({ onClose }) {
+    const ALL = t.sbAll;
+    const sidebarNav = NAV.filter(item => item.id !== "settings");
     return (
       <>
         {onClose && (
@@ -626,7 +707,7 @@ export default function NoteIO() {
             <button style={s.iconBtn} onClick={onClose}>✕</button>
           </div>
         )}
-        <div style={s.label}>Przestrzeń</div>
+        <div style={s.label}>{t.sbSpace}</div>
         <div style={{ position:"relative" }}>
           <button style={{ ...s.spacePill, borderColor:space.color+"88" }} onClick={()=>setShowDrop(v=>!v)}>
             <span>{space.emoji}</span><span style={{ flex:1, textAlign:"left", fontSize:13, fontWeight:500 }}>{space.name}</span><span style={{ color:"#57534E", fontSize:11 }}>▾</span>
@@ -643,35 +724,35 @@ export default function NoteIO() {
                 </button>
               ))}
               <div style={s.div}/>
-              <button style={s.dropManage} onClick={()=>{ setShowDrop(false); setShowSpaceMgr(true); if(onClose)onClose(); }}>⚙ Zarządzaj przestrzeniami</button>
+              <button style={s.dropManage} onClick={()=>{ setShowDrop(false); setShowSpaceMgr(true); if(onClose)onClose(); }}>{t.sbManage}</button>
             </div>
           )}
         </div>
         <div style={s.div}/>
-        {NAV.map(item=>(
+        {sidebarNav.map(item=>(
           <button key={item.id} style={{ ...s.navBtn, ...(view===item.id?s.navActive:{}) }}
             onClick={()=>{ setView(item.id); if(onClose)onClose(); }}>
             {item.icon}<span style={{ fontSize:13 }}>{item.label}</span>
           </button>
         ))}
         <div style={s.div}/>
-        <div style={s.label}>Tagi</div>
+        <div style={s.label}>{t.sbTags}</div>
         <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
-          {["wszystkie",...allTags].map(tag=>{
-            const a=tag==="wszystkie"?filterTag===null:filterTag===tag;
+          {[ALL,...allTags].map(tag=>{
+            const a=tag===ALL?filterTag===null:filterTag===tag;
             return (
               <button key={tag} style={{ ...s.tagPill, ...(a?{background:space.color+"22",color:space.color}:{}) }}
-                onClick={()=>{ setFilterTag(tag==="wszystkie"?null:(filterTag===tag?null:tag)); if(onClose)onClose(); }}>
+                onClick={()=>{ setFilterTag(tag===ALL?null:(filterTag===tag?null:tag)); if(onClose)onClose(); }}>
                 {tag}
               </button>
             );
           })}
         </div>
         <div style={{ flex:1 }}/>
-        {staleN>0 && <div style={s.staleHint}>⏳ {staleN} {staleN===1?"notatka czeka":"notatki czekają"} na przegląd</div>}
+        {staleN>0 && <div style={s.staleHint}>⏳ {staleN} {staleN===1?t.sbStale1:t.sbStaleN}</div>}
         <div style={{ display:"flex", alignItems:"center", gap:6, padding:"4px 6px" }}>
           <span style={{ width:6,height:6,borderRadius:"50%",background:"#10B981",flexShrink:0 }}/>
-          <span style={{ fontSize:11, color:"#57534E" }}>Zsynchronizowano</span>
+          <span style={{ fontSize:11, color:"#57534E" }}>{t.sbSynced}</span>
         </div>
       </>
     );
@@ -679,9 +760,9 @@ export default function NoteIO() {
 
   return (
     <div style={s.root}>
-      {showIntent  && <IntentPrompt onConfirm={handleIntent} onSkip={()=>handleIntent("")}/>}
-      {showTask    && <TaskIntentModal color={space.color} onConfirm={handleTaskIntent} onClose={()=>setShowTask(false)}/>}
-      {showSpaceMgr&& <SpaceManager spaces={spaces} onSave={u=>{setSpaces(u);setShowSpaceMgr(false);}} onClose={()=>setShowSpaceMgr(false)}/>}
+      {showIntent  && <IntentPrompt onConfirm={handleIntent} onSkip={()=>handleIntent("")} t={t}/>}
+      {showTask    && <TaskIntentModal color={space.color} onConfirm={handleTaskIntent} onClose={()=>setShowTask(false)} t={t}/>}
+      {showSpaceMgr&& <SpaceManager spaces={spaces} onSave={u=>{setSpaces(u);setShowSpaceMgr(false);}} onClose={()=>setShowSpaceMgr(false)} t={t}/>}
 
       {/* Mobile drawer */}
       {isMobile && showDrawer && (
@@ -697,7 +778,7 @@ export default function NoteIO() {
         <div style={s.sidebar}>
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
             <div style={s.logo}><div style={s.logoMark}>N</div><span style={s.logoTxt}>Note.io</span></div>
-            <div style={s.avatar}>A</div>
+            <div style={{ ...s.avatar, ...(view==="settings"?{borderColor:space.color,boxShadow:"0 0 0 2px "+space.color+"44"}:{}) }} onClick={()=>setView("settings")}>A</div>
           </div>
           <SidebarBody/>
         </div>
@@ -707,7 +788,7 @@ export default function NoteIO() {
       <div style={{ ...s.main, paddingBottom:isMobile?70:0 }}>
 
         {/* Mobile topbar */}
-        {isMobile && view!=="editor" && (
+        {isMobile && view!=="editor" && view!=="settings" && (
           <div style={s.topBar}>
             <button style={s.menuBtn} onClick={()=>setShowDrawer(true)}>
               <svg width="20" height="20" viewBox="0 0 18 18" fill="none">
@@ -737,28 +818,28 @@ export default function NoteIO() {
                 </div>
               )}
               <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-                <input style={s.searchBox} placeholder="Szukaj..." value={search} onChange={e=>setSearch(e.target.value)}/>
+                <input style={s.searchBox} placeholder={t.listSearch} value={search} onChange={e=>setSearch(e.target.value)}/>
                 <button style={{ ...s.ctrlBtn, ...(sortOrder==="desc"?{color:space.color}:{}) }} onClick={()=>setSortOrder(v=>v==="desc"?"asc":"desc")}>{sortOrder==="desc"?"↓":"↑"}</button>
                 <button style={{ ...s.ctrlBtn, ...(showDate||dateFrom||dateTo?{color:space.color,background:space.color+"15"}:{}) }} onClick={()=>setShowDate(v=>!v)}>📅</button>
-                {!isMobile && <button style={{ ...s.ctrlBtn, background:space.color, color:"#fff", border:"none" }} onClick={createNote}>+ Nowa</button>}
+                {!isMobile && <button style={{ ...s.ctrlBtn, background:space.color, color:"#fff", border:"none" }} onClick={createNote}>{t.listNew}</button>}
               </div>
               {showDate && (
                 <div style={{ display:"flex", gap:12, flexWrap:"wrap", alignItems:"center" }}>
-                  <div style={{ display:"flex", gap:6, alignItems:"center" }}><span style={{ fontSize:11, color:"#A8A29E" }}>Od</span><input type="date" style={s.dateInp} value={dateFrom} onChange={e=>setDateFrom(e.target.value)}/></div>
-                  <div style={{ display:"flex", gap:6, alignItems:"center" }}><span style={{ fontSize:11, color:"#A8A29E" }}>Do</span><input type="date" style={s.dateInp} value={dateTo} onChange={e=>setDateTo(e.target.value)}/></div>
-                  {(dateFrom||dateTo) && <button style={s.clearBtn} onClick={()=>{setDateFrom("");setDateTo("");}}>Wyczyść</button>}
+                  <div style={{ display:"flex", gap:6, alignItems:"center" }}><span style={{ fontSize:11, color:"#A8A29E" }}>{t.tvFrom}</span><input type="date" style={s.dateInp} value={dateFrom} onChange={e=>setDateFrom(e.target.value)}/></div>
+                  <div style={{ display:"flex", gap:6, alignItems:"center" }}><span style={{ fontSize:11, color:"#A8A29E" }}>{t.tvTo}</span><input type="date" style={s.dateInp} value={dateTo} onChange={e=>setDateTo(e.target.value)}/></div>
+                  {(dateFrom||dateTo) && <button style={s.clearBtn} onClick={()=>{setDateFrom("");setDateTo("");}}>{t.tvClear}</button>}
                 </div>
               )}
             </div>
             <div style={{ flex:1, overflowY:"auto", padding:"16px 8px 8px" }}>
-              {filtered.length===0 && <div style={s.empty}>Brak notatek · stwórz pierwszą →</div>}
+              {filtered.length===0 && <div style={s.empty}>{t.listEmpty}</div>}
               {filtered.map(note=>{
                 const stale=daysSince(note.lastOpened)>=30;
                 const done=note.tasks.filter(t=>t.done).length;
                 return (
                   <div key={note.id} style={{ ...s.noteRow, opacity:stale?.55:1 }} onClick={()=>openNote(note)}>
                     <div style={{ flex:1, minWidth:0, display:"flex", flexDirection:"column", gap:3 }}>
-                      <div style={{ fontSize:14, fontWeight:600, color:"#1C1917" }}>{note.title||"Bez tytułu"}</div>
+                      <div style={{ fontSize:14, fontWeight:600, color:"#1C1917" }}>{note.title||t.listNoTitle}</div>
                       {note.intent && <div style={{ fontSize:11, color:"#A8A29E", fontStyle:"italic" }}>→ {note.intent}</div>}
                       <div style={{ fontSize:12, color:"#78716C", overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{note.content.slice(0,72)}{note.content.length>72?"…":""}</div>
                     </div>
@@ -780,37 +861,37 @@ export default function NoteIO() {
           <div style={{ display:"flex", flexDirection:"column", height:"100%", overflowY:"auto" }}>
             {daysSince(active.lastOpened)>=30 && (
               <div style={s.staleBar}>
-                ⏳ Nie otwierana {daysSince(active.lastOpened)} dni. Nadal potrzebna?
-                <button style={s.staleBtn}>Zostaw</button>
-                <button style={{ ...s.staleBtn, color:"#EF4444" }}>Usuń</button>
+                ⏳ {daysSince(active.lastOpened)} {t.edStale}
+                <button style={s.staleBtn}>{t.edKeep}</button>
+                <button style={{ ...s.staleBtn, color:"#EF4444" }}>{t.edDelete}</button>
               </div>
             )}
             <div style={{ display:"flex", alignItems:"center", gap:10, padding:"12px 20px", borderBottom:"1px solid #E7E5E4" }}>
-              <button style={s.backBtn} onClick={()=>{ saveNote(); setView("list"); }}>← Wróć</button>
+              <button style={s.backBtn} onClick={()=>{ saveNote(); setView("list"); }}>{t.edBack}</button>
               {active.intent && !isMobile && <div style={{ flex:1, fontSize:12, color:"#A8A29E", fontStyle:"italic", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>→ {active.intent}</div>}
-              <button style={{ ...s.ctrlBtn, background:space.color, color:"#fff", border:"none", marginLeft:"auto" }} onClick={saveNote}>Zapisz</button>
+              <button style={{ ...s.ctrlBtn, background:space.color, color:"#fff", border:"none", marginLeft:"auto" }} onClick={saveNote}>{t.edSave}</button>
             </div>
             <div style={{ flex:1, padding:"20px", display:"flex", flexDirection:"column", gap:12, overflowY:"auto" }}>
-              <input ref={titleRef} style={s.titleInp} value={active.title} placeholder="Tytuł..." onChange={e=>setActive(p=>({...p,title:e.target.value}))}/>
+              <input ref={titleRef} style={s.titleInp} value={active.title} placeholder={t.edTitlePh} onChange={e=>setActive(p=>({...p,title:e.target.value}))}/>
               <textarea style={{ ...s.contentArea, minHeight:isMobile?160:220 }} value={active.content}
-                placeholder="Pisz to co ważne, nie wszystko co możliwe."
+                placeholder={t.edContentPh}
                 onChange={e=>setActive(p=>({...p,content:e.target.value}))}/>
             </div>
             <div style={{ display:"flex", gap:isMobile?16:28, padding:isMobile?"12px 16px":"14px 40px", borderTop:"1px solid #E7E5E4", flexWrap:"wrap" }}>
               <div style={s.toolSec}>
-                <div style={s.toolLbl}>Tagi</div>
+                <div style={s.toolLbl}>{t.edTags}</div>
                 <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center" }}>
                   {active.tags.map(t=>(
                     <span key={t} style={{ fontSize:12, padding:"3px 8px", borderRadius:6, background:space.color+"22", color:space.color, cursor:"pointer" }} onClick={()=>toggleTag(t)}>{t} ×</span>
                   ))}
                   <div style={{ position:"relative" }}>
                     <button style={s.addTagBtn} onClick={()=>setShowTagPick(v=>!v)}>+ tag</button>
-                    {showTagPick && <TagPicker active={active.tags} onSelect={t=>{toggleTag(t);setShowTagPick(false);}} onClose={()=>setShowTagPick(false)}/>}
+                    {showTagPick && <TagPicker active={active.tags} onSelect={tg=>{toggleTag(tg);setShowTagPick(false);}} onClose={()=>setShowTagPick(false)} t={t}/>}
                   </div>
                 </div>
               </div>
               <div style={{ ...s.toolSec, minWidth:isMobile?"100%":220 }}>
-                <div style={s.toolLbl}>Zadania</div>
+                <div style={s.toolLbl}>{t.edTasks}</div>
                 {active.tasks.map(task=>(
                   <div key={task.id} style={{ display:"flex", alignItems:"center", gap:8 }}>
                     <div style={{ ...s.chk, ...(task.done?{background:space.color,borderColor:space.color}:{}) }} onClick={()=>toggleTask(task.id)}>
@@ -820,7 +901,7 @@ export default function NoteIO() {
                   </div>
                 ))}
                 <div style={{ display:"flex", gap:6, alignItems:"center", marginTop:2 }}>
-                  <input style={s.taskInp} placeholder="Dodaj zadanie..." value={newTask}
+                  <input style={s.taskInp} placeholder={t.edAddTask} value={newTask}
                     onChange={e=>setNewTask(e.target.value)}
                     onKeyDown={e=>{ if(e.key==="Enter") addTask(); }}/>
                   <button style={{ background:"transparent", border:"none", color:"#A8A29E", fontSize:18, cursor:"pointer" }} onClick={addTask}>+</button>
@@ -833,17 +914,69 @@ export default function NoteIO() {
         {/* GRAPH */}
         {view==="graph" && (
           <div style={{ position:"relative", height:"100%", background:"#0C0A09" }}>
-            <div style={{ position:"absolute", top:18, left:22, color:"#57534E", fontSize:11, letterSpacing:".1em", textTransform:"uppercase", zIndex:10 }}>Graf · {space.emoji} {space.name}</div>
+            <div style={{ position:"absolute", top:18, left:22, color:"#57534E", fontSize:11, letterSpacing:".1em", textTransform:"uppercase", zIndex:10 }}>{t.navGraph} · {space.emoji} {space.name}</div>
             <ForceGraph notes={filtered} spaceColor={space.color} onOpenNote={openNote}/>
             <div style={{ position:"absolute", bottom:80, left:"50%", transform:"translateX(-50%)", color:"#44403C", fontSize:11, whiteSpace:"nowrap" }}>
-              {isMobile?"Dotknij węzła · 🟡 = przegląd":"Przeciągaj węzły · kliknij by otworzyć · 🟡 = czeka na przegląd"}
+              {isMobile?t.graphHintM:t.graphHintD}
             </div>
           </div>
         )}
 
         {/* TASKS */}
         {view==="tasks" && (
-          <TasksView notes={notes} color={space.color} allTags={allTags} onOpenNote={openNote} onCreate={createTask} onToggleTask={toggleTaskInList} standaloneTasks={standaloneTasks[activeSpace]||[]} onToggleStandaloneTask={toggleStandaloneTask}/>
+          <TasksView notes={notes} color={space.color} allTags={allTags} onOpenNote={openNote} onCreate={createTask} onToggleTask={toggleTaskInList} standaloneTasks={standaloneTasks[activeSpace]||[]} onToggleStandaloneTask={toggleStandaloneTask} t={t}/>
+        )}
+
+        {/* SETTINGS */}
+        {view==="settings" && (
+          <div style={{ display:"flex", flexDirection:"column", height:"100%", overflowY:"auto" }}>
+            {isMobile && (
+              <div style={s.topBar}>
+                <span style={{ fontSize:16, fontWeight:700, color:"#E7E5E4" }}>{t.setTitle}</span>
+                <div style={s.avatar}>A</div>
+              </div>
+            )}
+            <div style={{ flex:1, padding:isMobile?"20px 16px":"32px 40px", display:"flex", flexDirection:"column", gap:24, maxWidth:520 }}>
+              {!isMobile && <div style={{ fontSize:22, fontWeight:700, letterSpacing:"-0.02em" }}>{t.setTitle}</div>}
+
+              {/* Profile */}
+              <div style={s.setSection}>
+                <div style={s.setLabel}>{t.setProfile}</div>
+                <div style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 0" }}>
+                  <div style={{ ...s.avatar, width:40, height:40, fontSize:16 }}>A</div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:14, fontWeight:600 }}>Anna</div>
+                    <div style={{ fontSize:12, color:"#A8A29E" }}>anna@gmail.com</div>
+                  </div>
+                  <button style={{ ...s.ctrlBtn, color:"#EF4444", borderColor:"#FECACA" }} onClick={()=>setLoggedIn(false)}>{t.setLogout}</button>
+                </div>
+              </div>
+
+              {/* Language */}
+              <div style={s.setSection}>
+                <div style={s.setLabel}>{t.setLang}</div>
+                <div style={{ display:"flex", gap:8, marginTop:4 }}>
+                  <button style={{ ...s.ctrlBtn, ...(lang==="pl"?{background:space.color+"18",color:space.color,borderColor:space.color+"44"}:{}) }}
+                    onClick={()=>setLang("pl")}>{t.setPolish}</button>
+                  <button style={{ ...s.ctrlBtn, ...(lang==="en"?{background:space.color+"18",color:space.color,borderColor:space.color+"44"}:{}) }}
+                    onClick={()=>setLang("en")}>{t.setEnglish}</button>
+                </div>
+              </div>
+
+              {/* Data sync info */}
+              <div style={s.setSection}>
+                <div style={s.setLabel}>{t.setData}</div>
+                <div style={{ fontSize:13, color:"#78716C", lineHeight:1.6, marginTop:4 }}>{t.setDataDesc}</div>
+              </div>
+
+              {/* About */}
+              <div style={s.setSection}>
+                <div style={s.setLabel}>{t.setAbout}</div>
+                <div style={{ fontSize:13, color:"#78716C", lineHeight:1.6, marginTop:4 }}>{t.setAboutDesc}</div>
+                <div style={{ fontSize:11, color:"#A8A29E", marginTop:8 }}>v1.0.0</div>
+              </div>
+            </div>
+          </div>
         )}
       </div>
 
@@ -859,7 +992,7 @@ export default function NoteIO() {
           <button style={{ ...s.fab, background:space.color }} onClick={()=>view==="tasks"?createTask():createNote()}>
             <span style={{ fontSize:26, lineHeight:1, color:"#fff" }}>+</span>
           </button>
-          {NAV.slice(2).map(item=>(
+          {NAV.slice(2,4).map(item=>(
             <button key={item.id} style={{ ...s.mNavBtn, ...(view===item.id?{color:space.color}:{}) }} onClick={()=>setView(item.id)}>
               {item.icon}
               <span style={{ fontSize:10 }}>{item.label}</span>
@@ -897,7 +1030,7 @@ const m = {
 };
 
 const s = {
-  root:    { display:"flex", height:"100vh", background:"#FAFAF9", fontFamily:"'Inter',system-ui,sans-serif", overflow:"hidden", color:"#1C1917" },
+  root:    { display:"flex", width:"100%", height:"100vh", background:"#FAFAF9", fontFamily:"'Inter',system-ui,sans-serif", overflow:"hidden", color:"#1C1917" },
   sidebar: { width:200, background:"#1C1917", display:"flex", flexDirection:"column", padding:"16px 12px", gap:4, flexShrink:0, overflowY:"auto" },
   logo:    { display:"flex", alignItems:"center", gap:8 },
   logoMark:{ width:26, height:26, background:"#E7E5E4", borderRadius:6, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:"#1C1917" },
@@ -913,7 +1046,7 @@ const s = {
   navActive:{ background:"#292524", color:"#E7E5E4" },
   tagPill: { background:"transparent", border:"none", borderRadius:6, padding:"6px 10px", fontSize:12, cursor:"pointer", color:"#78716C", fontFamily:"inherit", textAlign:"left", width:"100%" },
   staleHint:{ fontSize:11, color:"#92400E", background:"#FEF3C7", borderRadius:6, padding:"6px 10px", marginBottom:4 },
-  main:    { flex:1, overflow:"hidden", display:"flex", flexDirection:"column" },
+  main:    { flex:1, minWidth:0, overflow:"hidden", display:"flex", flexDirection:"column" },
   listHead:{ padding:"14px 16px 10px", borderBottom:"1px solid #E7E5E4", display:"flex", flexDirection:"column", gap:8 },
   badge:   { fontSize:11, color:"#A8A29E", background:"#F5F5F4", borderRadius:20, padding:"2px 8px" },
   searchBox:{ flex:1, padding:"8px 12px", border:"1px solid #E7E5E4", borderRadius:7, fontSize:13, background:"#FAFAF9", color:"#1C1917", outline:"none", fontFamily:"inherit" },
@@ -957,4 +1090,6 @@ const s = {
   tvList:  { flex:1, overflowY:"auto", padding:"8px 20px 80px" },
   tvRow:   { display:"flex", alignItems:"flex-start", gap:12, padding:"12px 0", borderBottom:"1px solid #F5F5F4" },
   tagChip: { fontSize:12, padding:"4px 10px", borderRadius:20, border:"1px solid #E7E5E4", background:"transparent", color:"#78716C", cursor:"pointer", fontFamily:"inherit" },
+  setSection:{ borderBottom:"1px solid #F5F5F4", paddingBottom:16 },
+  setLabel: { fontSize:10, color:"#A8A29E", letterSpacing:".1em", textTransform:"uppercase" },
 };
