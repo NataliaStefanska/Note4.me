@@ -234,7 +234,7 @@ function SpaceManager({ spaces, onSave, onClose }) {
 }
 
 // ─── Tasks View ───────────────────────────────────────────────────────────────
-function TasksView({ notes, color, allTags, onOpenNote, onCreate }) {
+function TasksView({ notes, color, allTags, onOpenNote, onCreate, onToggleTask, standaloneTasks, onToggleStandaloneTask }) {
   const [tag, setTag] = useState(null);
   const [sort, setSort] = useState("desc");
   const [from, setFrom] = useState("");
@@ -242,7 +242,7 @@ function TasksView({ notes, color, allTags, onOpenNote, onCreate }) {
   const [showDate, setShowDate] = useState(false);
   const [showDone, setShowDone] = useState(true);
 
-  const tasks = notes
+  const noteTasks = notes
     .filter(n => {
       const mt = tag ? n.tags.includes(tag) : true;
       const mf = from ? n.updatedAt >= from : true;
@@ -251,8 +251,19 @@ function TasksView({ notes, color, allTags, onOpenNote, onCreate }) {
     })
     .flatMap(n => n.tasks
       .filter(t => showDone || !t.done)
-      .map(t => ({ ...t, noteTitle:n.title, noteDate:n.updatedAt, noteTags:n.tags, note:n }))
-    )
+      .map(t => ({ ...t, noteTitle:n.title, noteDate:n.updatedAt, noteTags:n.tags, note:n, standalone:false }))
+    );
+
+  const standaloneItems = (standaloneTasks || [])
+    .filter(t => showDone || !t.done)
+    .filter(t => {
+      const mf = from ? t.createdAt >= from : true;
+      const mtd = to ? t.createdAt <= to : true;
+      return mf && mtd;
+    })
+    .map(t => ({ ...t, noteTitle:null, noteDate:t.createdAt, noteTags:[], note:null, standalone:true }));
+
+  const tasks = [...noteTasks, ...standaloneItems]
     .sort((a,b) => sort==="desc" ? b.noteDate.localeCompare(a.noteDate) : a.noteDate.localeCompare(b.noteDate));
 
   const doneN = tasks.filter(t => t.done).length;
@@ -304,16 +315,23 @@ function TasksView({ notes, color, allTags, onOpenNote, onCreate }) {
         {tasks.length === 0 && <div style={s.empty}>Brak zadań do wyświetlenia</div>}
         {tasks.map((t, i) => (
           <div key={t.id + "-" + i} style={s.tvRow}>
-            <div style={{ ...s.chk, ...(t.done?{background:color,borderColor:color}:{}) }}>
+            <div style={{ ...s.chk, ...(t.done?{background:color,borderColor:color}:{}) }} onClick={() => t.standalone ? onToggleStandaloneTask(t.id) : onToggleTask(t.note.id, t.id)}>
               {t.done && <span style={{ color:"#fff", fontSize:10 }}>✓</span>}
             </div>
             <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ fontSize:14, fontWeight:500, color:"#1C1917", textDecoration:t.done?"line-through":"none", color:t.done?"#A8A29E":"#1C1917" }}>{t.text}</div>
-              <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", marginTop:3, cursor:"pointer" }} onClick={() => onOpenNote(t.note)}>
-                <span style={{ fontSize:11, fontStyle:"italic", color }}>{"\u2197"} {t.noteTitle||"Bez tytułu"}</span>
-                <span style={{ fontSize:11, color:"#A8A29E" }}>{t.noteDate}</span>
-                {t.noteTags.map(tg => <span key={tg} style={s.tinyTag}>{tg}</span>)}
-              </div>
+              <div style={{ fontSize:14, fontWeight:500, textDecoration:t.done?"line-through":"none", color:t.done?"#A8A29E":"#1C1917" }}>{t.text}</div>
+              {t.standalone ? (
+                <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", marginTop:3 }}>
+                  <span style={{ fontSize:11, color:"#A8A29E" }}>{t.noteDate}</span>
+                  {t.intent && <span style={{ fontSize:11, fontStyle:"italic", color:"#A8A29E" }}>→ {t.intent}</span>}
+                </div>
+              ) : (
+                <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", marginTop:3, cursor:"pointer" }} onClick={() => onOpenNote(t.note)}>
+                  <span style={{ fontSize:11, fontStyle:"italic", color }}>{"\u2197"} {t.noteTitle||"Bez tytułu"}</span>
+                  <span style={{ fontSize:11, color:"#A8A29E" }}>{t.noteDate}</span>
+                  {t.noteTags.map(tg => <span key={tg} style={s.tinyTag}>{tg}</span>)}
+                </div>
+              )}
             </div>
           </div>
         ))}
@@ -513,6 +531,7 @@ export default function NoteIO() {
   const [spaces,      setSpaces]      = useState(INITIAL_SPACES);
   const [activeSpace, setActiveSpace] = useState("s1");
   const [allNotes,    setAllNotes]    = useState(INITIAL_NOTES);
+  const [standaloneTasks, setStandaloneTasks] = useState({});
   const [view,        setView]        = useState("list");
   const [active,      setActive]      = useState(null);
   const [search,      setSearch]      = useState("");
@@ -533,7 +552,7 @@ export default function NoteIO() {
 
   const notes  = allNotes[activeSpace] || [];
   const space  = spaces.find(sp => sp.id===activeSpace) || spaces[0];
-  const allTags= [...new Set(notes.flatMap(n=>n.tags))];
+  const allTags= [...new Set([...notes.flatMap(n=>n.tags), ...(active ? active.tags : [])])];
   const staleN = notes.filter(n=>daysSince(n.lastOpened)>=30).length;
 
   const filtered = notes
@@ -559,18 +578,35 @@ export default function NoteIO() {
   }
 
   function handleTaskIntent(why, what) {
-    const n={ id:"n"+Date.now(), title:what||"Zadanie", content:"", tags:[], linkedNotes:[],
-      tasks:[{id:"t"+Date.now(), text:what, done:false}], intent:why,
-      updatedAt:TODAY.toISOString().split("T")[0], lastOpened:TODAY.toISOString().split("T")[0] };
-    setAllNotes(p=>({...p,[activeSpace]:[n,...(p[activeSpace]||[])]}));
+    const task = { id:"t"+Date.now(), text:what, done:false, intent:why,
+      createdAt:TODAY.toISOString().split("T")[0] };
+    setStandaloneTasks(p=>({...p,[activeSpace]:[task,...(p[activeSpace]||[])]}));
     setShowTask(false);
   }
 
   function openNote(note)  { setActive({...note, lastOpened:TODAY.toISOString().split("T")[0]}); setView("editor"); }
   function saveNote()      { if(!active) return; setAllNotes(p=>({...p,[activeSpace]:(p[activeSpace]||[]).map(n=>n.id===active.id?{...active}:n)})); }
-  function toggleTask(id)  { setActive(p=>({...p,tasks:p.tasks.map(t=>t.id===id?{...t,done:!t.done}:t)})); }
+  function toggleTask(id)  {
+    setActive(p=>{
+      const updated = {...p, tasks:p.tasks.map(t=>t.id===id?{...t,done:!t.done}:t)};
+      setAllNotes(prev=>({...prev,[activeSpace]:(prev[activeSpace]||[]).map(n=>n.id===updated.id?{...updated}:n)}));
+      return updated;
+    });
+  }
+  function toggleTaskInList(noteId, taskId) {
+    setAllNotes(prev=>({...prev,[activeSpace]:(prev[activeSpace]||[]).map(n=>n.id===noteId?{...n,tasks:n.tasks.map(t=>t.id===taskId?{...t,done:!t.done}:t)}:n)}));
+  }
+  function toggleStandaloneTask(taskId) {
+    setStandaloneTasks(prev=>({...prev,[activeSpace]:(prev[activeSpace]||[]).map(t=>t.id===taskId?{...t,done:!t.done}:t)}));
+  }
   function addTask()       { if(!newTask.trim()) return; setActive(p=>({...p,tasks:[...p.tasks,{id:"t"+Date.now(),text:newTask,done:false}]})); setNewTask(""); }
-  function toggleTag(tag)  { setActive(p=>({...p,tags:p.tags.includes(tag)?p.tags.filter(t=>t!==tag):[...p.tags,tag]})); }
+  function toggleTag(tag)  {
+    setActive(p=>{
+      const updated = {...p, tags:p.tags.includes(tag)?p.tags.filter(t=>t!==tag):[...p.tags,tag]};
+      setAllNotes(prev=>({...prev,[activeSpace]:(prev[activeSpace]||[]).map(n=>n.id===updated.id?{...updated}:n)}));
+      return updated;
+    });
+  }
 
   // Conditional return AFTER all hooks
   if (!loggedIn) return <LoginScreen onLogin={()=>setLoggedIn(true)} />;
@@ -760,7 +796,7 @@ export default function NoteIO() {
                 placeholder="Pisz to co ważne, nie wszystko co możliwe."
                 onChange={e=>setActive(p=>({...p,content:e.target.value}))}/>
             </div>
-            <div style={{ display:"flex", gap:isMobile?16:28, padding:isMobile?"12px 16px":"14px 40px", borderTop:"1px solid #E7E5E4", flexWrap:"wrap", overflowX:"auto" }}>
+            <div style={{ display:"flex", gap:isMobile?16:28, padding:isMobile?"12px 16px":"14px 40px", borderTop:"1px solid #E7E5E4", flexWrap:"wrap" }}>
               <div style={s.toolSec}>
                 <div style={s.toolLbl}>Tagi</div>
                 <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center" }}>
@@ -807,7 +843,7 @@ export default function NoteIO() {
 
         {/* TASKS */}
         {view==="tasks" && (
-          <TasksView notes={notes} color={space.color} allTags={allTags} onOpenNote={openNote} onCreate={createTask}/>
+          <TasksView notes={notes} color={space.color} allTags={allTags} onOpenNote={openNote} onCreate={createTask} onToggleTask={toggleTaskInList} standaloneTasks={standaloneTasks[activeSpace]||[]} onToggleStandaloneTask={toggleStandaloneTask}/>
         )}
       </div>
 
