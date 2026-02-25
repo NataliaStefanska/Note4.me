@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { loginWithGoogle, logout, onAuth, saveUserData, loadUserData } from "./firebase";
 
 // ─── Data ──────────────────────────────────────────────────────────────────
 const TODAY = new Date();
@@ -71,7 +72,7 @@ const T = {
     graphHintM:"Dotknij węzła · 🟡 = przegląd",
     graphHintD:"Przeciągaj węzły · kliknij by otworzyć · 🟡 = czeka na przegląd",
     setTitle:"Ustawienia", setLang:"Język", setPolish:"Polski", setEnglish:"English",
-    setData:"Synchronizacja danych", setDataDesc:"Dane zapisywane lokalnie w przeglądarce. Aby zsynchronizować z kontem Google, zalecamy integrację z Firebase (Firestore + Auth).",
+    setData:"Synchronizacja danych", setDataDesc:"Dane synchronizowane z chmurą Firebase.",
     setProfile:"Profil", setLogout:"Wyloguj się",
     setAbout:"O aplikacji", setAboutDesc:"Note.io — minimalistyczne notatki z grafem połączeń.",
   },
@@ -103,7 +104,7 @@ const T = {
     graphHintM:"Tap a node · 🟡 = review",
     graphHintD:"Drag nodes · click to open · 🟡 = awaits review",
     setTitle:"Settings", setLang:"Language", setPolish:"Polski", setEnglish:"English",
-    setData:"Data sync", setDataDesc:"Data saved locally in the browser. To sync with a Google account, we recommend Firebase integration (Firestore + Auth).",
+    setData:"Data sync", setDataDesc:"Data synchronized with Firebase cloud.",
     setProfile:"Profile", setLogout:"Log out",
     setAbout:"About", setAboutDesc:"Note.io — minimalist notes with a connection graph.",
   },
@@ -597,11 +598,12 @@ function ForceGraph({ notes, spaceColor, onOpenNote }) {
 export default function NoteIO() {
   // ALL hooks before any return
   const [lang,        setLang]        = useState(() => { try { return localStorage.getItem("noteio_lang") || "pl"; } catch { return "pl"; } });
-  const [loggedIn,    setLoggedIn]    = useState(false);
-  const [spaces,      setSpaces]      = useState(() => { try { const d = localStorage.getItem("noteio_spaces"); return d ? JSON.parse(d) : INITIAL_SPACES; } catch { return INITIAL_SPACES; } });
-  const [activeSpace, setActiveSpace] = useState(() => { try { return localStorage.getItem("noteio_activeSpace") || "s1"; } catch { return "s1"; } });
-  const [allNotes,    setAllNotes]    = useState(() => { try { const d = localStorage.getItem("noteio_notes"); return d ? JSON.parse(d) : INITIAL_NOTES; } catch { return INITIAL_NOTES; } });
-  const [standaloneTasks, setStandaloneTasks] = useState(() => { try { const d = localStorage.getItem("noteio_tasks"); return d ? JSON.parse(d) : {}; } catch { return {}; } });
+  const [user,        setUser]        = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [spaces,      setSpaces]      = useState(INITIAL_SPACES);
+  const [activeSpace, setActiveSpace] = useState("s1");
+  const [allNotes,    setAllNotes]    = useState(INITIAL_NOTES);
+  const [standaloneTasks, setStandaloneTasks] = useState({});
   const [view,        setView]        = useState("list");
   const [active,      setActive]      = useState(null);
   const [search,      setSearch]      = useState("");
@@ -617,16 +619,63 @@ export default function NoteIO() {
   const [dateTo,      setDateTo]      = useState("");
   const [showDate,    setShowDate]    = useState(false);
   const [showDrawer,  setShowDrawer]  = useState(false);
+  const [syncStatus,  setSyncStatus]  = useState("idle");
   const isMobile = useIsMobile();
   const titleRef = useRef();
   const t = T[lang] || T.pl;
+  const saveTimer = useRef(null);
 
-  // ─── localStorage persistence ───────────────────────────────────────────
+  // ─── Firebase Auth listener ─────────────────────────────────────────────
+  useEffect(() => {
+    const unsub = onAuth(async (firebaseUser) => {
+      if (firebaseUser) {
+        setUser(firebaseUser);
+        setSyncStatus("loading");
+        try {
+          const data = await loadUserData(firebaseUser.uid);
+          if (data) {
+            if (data.spaces) setSpaces(data.spaces);
+            if (data.activeSpace) setActiveSpace(data.activeSpace);
+            if (data.allNotes) setAllNotes(data.allNotes);
+            if (data.standaloneTasks) setStandaloneTasks(data.standaloneTasks);
+            if (data.lang) setLang(data.lang);
+          }
+          setSyncStatus("synced");
+        } catch {
+          setSyncStatus("error");
+        }
+      } else {
+        setUser(null);
+        setSpaces(INITIAL_SPACES);
+        setAllNotes(INITIAL_NOTES);
+        setStandaloneTasks({});
+        setActiveSpace("s1");
+      }
+      setAuthLoading(false);
+    });
+    return unsub;
+  }, []);
+
+  // ─── Debounced Firestore save ───────────────────────────────────────────
+  const syncToFirestore = useCallback((data) => {
+    if (!user) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(async () => {
+      setSyncStatus("saving");
+      try {
+        await saveUserData(user.uid, data);
+        setSyncStatus("synced");
+      } catch {
+        setSyncStatus("error");
+      }
+    }, 1500);
+  }, [user]);
+
   useEffect(() => { try { localStorage.setItem("noteio_lang", lang); } catch {} }, [lang]);
-  useEffect(() => { try { localStorage.setItem("noteio_spaces", JSON.stringify(spaces)); } catch {} }, [spaces]);
-  useEffect(() => { try { localStorage.setItem("noteio_activeSpace", activeSpace); } catch {} }, [activeSpace]);
-  useEffect(() => { try { localStorage.setItem("noteio_notes", JSON.stringify(allNotes)); } catch {} }, [allNotes]);
-  useEffect(() => { try { localStorage.setItem("noteio_tasks", JSON.stringify(standaloneTasks)); } catch {} }, [standaloneTasks]);
+  useEffect(() => {
+    if (!user || authLoading) return;
+    syncToFirestore({ spaces, activeSpace, allNotes, standaloneTasks, lang });
+  }, [spaces, activeSpace, allNotes, standaloneTasks, lang, user, authLoading, syncToFirestore]);
 
   const notes  = allNotes[activeSpace] || [];
   const space  = spaces.find(sp => sp.id===activeSpace) || spaces[0];
@@ -686,8 +735,21 @@ export default function NoteIO() {
     });
   }
 
+  // ─── Auth handlers ─────────────────────────────────────────────────────
+  async function handleLogin() {
+    try { await loginWithGoogle(); } catch (e) { console.error("Login failed:", e); }
+  }
+  async function handleLogout() {
+    try { await logout(); setView("list"); } catch (e) { console.error("Logout failed:", e); }
+  }
+
   // Conditional return AFTER all hooks
-  if (!loggedIn) return <LoginScreen onLogin={()=>setLoggedIn(true)} t={t} />;
+  if (authLoading) return (
+    <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100vh", background:"#0C0A09" }}>
+      <div style={{ color:"#57534E", fontSize:14 }}>Loading...</div>
+    </div>
+  );
+  if (!user) return <LoginScreen onLogin={handleLogin} t={t} />;
 
   const NAV = [
     { id:"list",  label:t.navNotes, icon:<svg width="20" height="20" viewBox="0 0 13 13" fill="none"><rect x="1" y="1.5" width="11" height="1.4" rx=".7" fill="currentColor"/><rect x="1" y="5.5" width="11" height="1.4" rx=".7" fill="currentColor"/><rect x="1" y="9.5" width="7" height="1.4" rx=".7" fill="currentColor"/></svg> },
@@ -751,8 +813,8 @@ export default function NoteIO() {
         <div style={{ flex:1 }}/>
         {staleN>0 && <div style={s.staleHint}>⏳ {staleN} {staleN===1?t.sbStale1:t.sbStaleN}</div>}
         <div style={{ display:"flex", alignItems:"center", gap:6, padding:"4px 6px" }}>
-          <span style={{ width:6,height:6,borderRadius:"50%",background:"#10B981",flexShrink:0 }}/>
-          <span style={{ fontSize:11, color:"#57534E" }}>{t.sbSynced}</span>
+          <span style={{ width:6,height:6,borderRadius:"50%",background:syncStatus==="synced"?"#10B981":syncStatus==="saving"?"#F59E0B":"#EF4444",flexShrink:0 }}/>
+          <span style={{ fontSize:11, color:"#57534E" }}>{syncStatus==="synced"?t.sbSynced:syncStatus==="saving"?"...":(syncStatus==="error"?"!":t.sbSynced)}</span>
         </div>
       </>
     );
@@ -778,7 +840,10 @@ export default function NoteIO() {
         <div style={s.sidebar}>
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
             <div style={s.logo}><div style={s.logoMark}>N</div><span style={s.logoTxt}>Note.io</span></div>
-            <div style={{ ...s.avatar, ...(view==="settings"?{borderColor:space.color,boxShadow:"0 0 0 2px "+space.color+"44"}:{}) }} onClick={()=>setView("settings")}>A</div>
+            {user.photoURL
+              ? <img src={user.photoURL} alt="" referrerPolicy="no-referrer" style={{ ...s.avatar, ...(view==="settings"?{borderColor:space.color,boxShadow:"0 0 0 2px "+space.color+"44"}:{}) }} onClick={()=>setView("settings")} />
+              : <div style={{ ...s.avatar, ...(view==="settings"?{borderColor:space.color,boxShadow:"0 0 0 2px "+space.color+"44"}:{}) }} onClick={()=>setView("settings")}>{(user.displayName||"U")[0]}</div>
+            }
           </div>
           <SidebarBody/>
         </div>
@@ -802,7 +867,10 @@ export default function NoteIO() {
               <span style={{ fontSize:15, fontWeight:600, color:space.color }}>{space.name}</span>
               {filterTag && <span style={{ ...s.tinyTag, background:space.color+"22", color:space.color }}>{filterTag}</span>}
             </div>
-            <div style={s.avatar}>A</div>
+            {user.photoURL
+              ? <img src={user.photoURL} alt="" referrerPolicy="no-referrer" style={s.avatar} onClick={()=>setView("settings")} />
+              : <div style={s.avatar} onClick={()=>setView("settings")}>{(user.displayName||"U")[0]}</div>
+            }
           </div>
         )}
 
@@ -933,7 +1001,10 @@ export default function NoteIO() {
             {isMobile && (
               <div style={s.topBar}>
                 <span style={{ fontSize:16, fontWeight:700, color:"#E7E5E4" }}>{t.setTitle}</span>
-                <div style={s.avatar}>A</div>
+                {user.photoURL
+                  ? <img src={user.photoURL} alt="" referrerPolicy="no-referrer" style={s.avatar} />
+                  : <div style={s.avatar}>{(user.displayName||"U")[0]}</div>
+                }
               </div>
             )}
             <div style={{ flex:1, padding:isMobile?"20px 16px":"32px 40px", display:"flex", flexDirection:"column", gap:24, maxWidth:520 }}>
@@ -943,12 +1014,15 @@ export default function NoteIO() {
               <div style={s.setSection}>
                 <div style={s.setLabel}>{t.setProfile}</div>
                 <div style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 0" }}>
-                  <div style={{ ...s.avatar, width:40, height:40, fontSize:16 }}>A</div>
+                  {user.photoURL
+                    ? <img src={user.photoURL} alt="" referrerPolicy="no-referrer" style={{ ...s.avatar, width:40, height:40 }} />
+                    : <div style={{ ...s.avatar, width:40, height:40, fontSize:16 }}>{(user.displayName||"U")[0]}</div>
+                  }
                   <div style={{ flex:1 }}>
-                    <div style={{ fontSize:14, fontWeight:600 }}>Anna</div>
-                    <div style={{ fontSize:12, color:"#A8A29E" }}>anna@gmail.com</div>
+                    <div style={{ fontSize:14, fontWeight:600 }}>{user.displayName||"User"}</div>
+                    <div style={{ fontSize:12, color:"#A8A29E" }}>{user.email||""}</div>
                   </div>
-                  <button style={{ ...s.ctrlBtn, color:"#EF4444", borderColor:"#FECACA" }} onClick={()=>setLoggedIn(false)}>{t.setLogout}</button>
+                  <button style={{ ...s.ctrlBtn, color:"#EF4444", borderColor:"#FECACA" }} onClick={handleLogout}>{t.setLogout}</button>
                 </div>
               </div>
 
@@ -966,7 +1040,16 @@ export default function NoteIO() {
               {/* Data sync info */}
               <div style={s.setSection}>
                 <div style={s.setLabel}>{t.setData}</div>
-                <div style={{ fontSize:13, color:"#78716C", lineHeight:1.6, marginTop:4 }}>{t.setDataDesc}</div>
+                <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:8 }}>
+                  <span style={{ width:7, height:7, borderRadius:"50%", background:syncStatus==="synced"?"#10B981":syncStatus==="saving"?"#F59E0B":"#EF4444" }}/>
+                  <span style={{ fontSize:12, color:"#78716C" }}>
+                    {syncStatus==="synced" ? (lang==="pl"?"Zsynchronizowano z Firebase":"Synced with Firebase")
+                     : syncStatus==="saving" ? (lang==="pl"?"Zapisywanie...":"Saving...")
+                     : syncStatus==="loading" ? (lang==="pl"?"Wczytywanie...":"Loading...")
+                     : (lang==="pl"?"Błąd synchronizacji":"Sync error")}
+                  </span>
+                </div>
+                <div style={{ fontSize:12, color:"#A8A29E", marginTop:6 }}>{user.email}</div>
               </div>
 
               {/* About */}
@@ -1035,7 +1118,7 @@ const s = {
   logo:    { display:"flex", alignItems:"center", gap:8 },
   logoMark:{ width:26, height:26, background:"#E7E5E4", borderRadius:6, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:"#1C1917" },
   logoTxt: { color:"#E7E5E4", fontSize:14, fontWeight:600, letterSpacing:"-0.01em" },
-  avatar:  { width:28, height:28, borderRadius:"50%", background:"#292524", color:"#A8A29E", fontSize:12, fontWeight:600, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" },
+  avatar:  { width:28, height:28, borderRadius:"50%", background:"#292524", color:"#A8A29E", fontSize:12, fontWeight:600, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", objectFit:"cover" },
   label:   { fontSize:10, color:"#57534E", letterSpacing:".1em", textTransform:"uppercase", padding:"0 6px", marginBottom:4 },
   spacePill:{ display:"flex", alignItems:"center", gap:8, width:"100%", background:"#292524", border:"1.5px solid", borderRadius:8, padding:"8px 10px", cursor:"pointer", color:"#E7E5E4", fontFamily:"inherit", marginBottom:4 },
   drop:    { position:"absolute", top:"100%", left:0, right:0, background:"#292524", borderRadius:8, border:"1px solid #3F3C3A", zIndex:100, overflow:"hidden", marginTop:2 },
