@@ -5,7 +5,7 @@ import { NAV_ITEMS } from "./navItems";
 
 export default function Sidebar({ onClose }) {
   const {
-    t, user, space, spaces, activeSpace, filterTag, setFilterTag,
+    t, space, spaces, activeSpace, filterTag, setFilterTag,
     showDrop, setShowDrop, showArchived, setShowArchived,
     allTags, archivedN, staleN, syncStatus,
     switchSpace, setShowSpaceMgr,

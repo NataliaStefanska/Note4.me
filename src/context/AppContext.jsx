@@ -6,6 +6,7 @@ import { textPreview, contentToHtml } from "../utils/helpers";
 
 const AppContext = createContext(null);
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useApp() {
   return useContext(AppContext);
 }
@@ -96,7 +97,7 @@ export function AppProvider({ children }) {
     }, 1500);
   }, [user]);
 
-  useEffect(() => { try { localStorage.setItem("noteio_lang", lang); } catch {} }, [lang]);
+  useEffect(() => { try { localStorage.setItem("noteio_lang", lang); } catch { /* localStorage unavailable */ } }, [lang]);
   useEffect(() => {
     if (!user || authLoading) return;
     syncToFirestore({ spaces, activeSpace, allNotes, standaloneTasks, lang });

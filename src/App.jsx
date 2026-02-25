@@ -24,7 +24,6 @@ export default function App() {
     showDeleteConfirm, setShowDeleteConfirm, showSaveToast,
     showDrawer, setShowDrawer, filterTag,
     handleLogin, handleIntent, handleTaskIntent, deleteNote,
-    quickCapture, openNote,
   } = useApp();
   const isMobile = useIsMobile();
   const navigate = useNavigate();

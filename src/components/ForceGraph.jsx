@@ -110,7 +110,7 @@ export default function ForceGraph({ notes, spaceColor, onOpenNote }) {
     drag.current=id;
     const cx=e.clientX||(e.touches&&e.touches[0]&&e.touches[0].clientX)||0;
     const cy=e.clientY||(e.touches&&e.touches[0]&&e.touches[0].clientY)||0;
-    clickStart.current={id, time:Date.now(), x:cx, y:cy};
+    clickStart.current={id, time:performance.now(), x:cx, y:cy}; // eslint-disable-line react-hooks/purity -- event handler, not render
     const nd=nodes.current.find(n=>n.id===id);
     if (nd) { nd.vx=0; nd.vy=0; }
   }
@@ -121,7 +121,7 @@ export default function ForceGraph({ notes, spaceColor, onOpenNote }) {
     if (!cs||cs.id!==node.id) return;
     const cx=e.clientX||(e.changedTouches&&e.changedTouches[0]&&e.changedTouches[0].clientX)||cs.x;
     const cy=e.clientY||(e.changedTouches&&e.changedTouches[0]&&e.changedTouches[0].clientY)||cs.y;
-    if (Date.now()-cs.time<250&&Math.hypot(cx-cs.x,cy-cs.y)<8&&node.kind==="note") onOpenNote(node.note);
+    if (performance.now()-cs.time<250&&Math.hypot(cx-cs.x,cy-cs.y)<8&&node.kind==="note") onOpenNote(node.note); // eslint-disable-line react-hooks/purity -- event handler, not render
     clickStart.current=null;
   }
 
