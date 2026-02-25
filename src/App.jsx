@@ -75,6 +75,12 @@ const T = {
     setData:"Synchronizacja danych", setDataDesc:"Dane synchronizowane z chmurą Firebase.",
     setProfile:"Profil", setLogout:"Wyloguj się",
     setAbout:"O aplikacji", setAboutDesc:"Note.io — minimalistyczne notatki z grafem połączeń.",
+    archiveBtn:"Archiwizuj", unarchiveBtn:"Przywróć", deleteBtn:"Usuń",
+    archiveConfirm:"Zarchiwizowano", deleteConfirmQ:"Usunąć tę notatkę?",
+    deleteConfirmSub:"Tej operacji nie da się cofnąć.",
+    deleteConfirmYes:"Usuń", deleteConfirmNo:"Anuluj",
+    sbArchived:"Archiwum", archivedBadge:"zarchiwizowana",
+    listShowArchived:"Archiwum", listHideArchived:"Aktywne",
   },
   en: {
     loginTagline:"Your notes. Your rules.", loginSync:"Cross-device synchronization",
@@ -107,6 +113,12 @@ const T = {
     setData:"Data sync", setDataDesc:"Data synchronized with Firebase cloud.",
     setProfile:"Profile", setLogout:"Log out",
     setAbout:"About", setAboutDesc:"Note.io — minimalist notes with a connection graph.",
+    archiveBtn:"Archive", unarchiveBtn:"Restore", deleteBtn:"Delete",
+    archiveConfirm:"Archived", deleteConfirmQ:"Delete this note?",
+    deleteConfirmSub:"This action cannot be undone.",
+    deleteConfirmYes:"Delete", deleteConfirmNo:"Cancel",
+    sbArchived:"Archive", archivedBadge:"archived",
+    listShowArchived:"Archive", listHideArchived:"Active",
   },
 };
 
@@ -619,6 +631,8 @@ export default function NoteIO() {
   const [dateTo,      setDateTo]      = useState("");
   const [showDate,    setShowDate]    = useState(false);
   const [showDrawer,  setShowDrawer]  = useState(false);
+  const [showArchived,setShowArchived]= useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
   const [syncStatus,  setSyncStatus]  = useState("idle");
   const isMobile = useIsMobile();
   const titleRef = useRef();
@@ -682,13 +696,16 @@ export default function NoteIO() {
   const allTags= [...new Set([...notes.flatMap(n=>n.tags), ...(active ? active.tags : [])])];
   const staleN = notes.filter(n=>daysSince(n.lastOpened)>=30).length;
 
+  const archivedN = notes.filter(n=>n.archived).length;
+
   const filtered = notes
     .filter(n => {
+      const ma = showArchived ? !!n.archived : !n.archived;
       const mt = filterTag ? n.tags.includes(filterTag) : true;
       const ms = search ? n.title.toLowerCase().includes(search.toLowerCase())||n.content.toLowerCase().includes(search.toLowerCase()) : true;
       const mf = dateFrom ? n.updatedAt>=dateFrom : true;
       const mtd= dateTo   ? n.updatedAt<=dateTo   : true;
-      return mt&&ms&&mf&&mtd;
+      return ma&&mt&&ms&&mf&&mtd;
     })
     .sort((a,b)=>sortOrder==="desc"?b.updatedAt.localeCompare(a.updatedAt):a.updatedAt.localeCompare(b.updatedAt));
 
@@ -733,6 +750,20 @@ export default function NoteIO() {
       setAllNotes(prev=>({...prev,[activeSpace]:(prev[activeSpace]||[]).map(n=>n.id===updated.id?{...updated}:n)}));
       return updated;
     });
+  }
+
+  function deleteNote(noteId) {
+    setAllNotes(p=>({...p,[activeSpace]:(p[activeSpace]||[]).filter(n=>n.id!==noteId)}));
+    if (active && active.id===noteId) { setActive(null); setView("list"); }
+    setShowDeleteConfirm(null);
+  }
+  function archiveNote(noteId) {
+    setAllNotes(p=>({...p,[activeSpace]:(p[activeSpace]||[]).map(n=>n.id===noteId?{...n,archived:true}:n)}));
+    if (active && active.id===noteId) { setActive(null); setView("list"); }
+  }
+  function unarchiveNote(noteId) {
+    setAllNotes(p=>({...p,[activeSpace]:(p[activeSpace]||[]).map(n=>n.id===noteId?{...n,archived:false}:n)}));
+    if (active && active.id===noteId) setActive(prev=>({...prev, archived:false}));
   }
 
   // ─── Auth handlers ─────────────────────────────────────────────────────
@@ -811,6 +842,12 @@ export default function NoteIO() {
           })}
         </div>
         <div style={{ flex:1 }}/>
+        {archivedN>0 && (
+          <button style={{ ...s.staleHint, background:showArchived?"#EDE9FE":"#F5F3FF", color:"#5B21B6", border:"none", cursor:"pointer", fontFamily:"inherit", width:"100%", textAlign:"left", marginBottom:2 }}
+            onClick={()=>{ setShowArchived(v=>!v); setView("list"); if(onClose)onClose(); }}>
+            📦 {archivedN} {t.sbArchived}
+          </button>
+        )}
         {staleN>0 && <div style={s.staleHint}>⏳ {staleN} {staleN===1?t.sbStale1:t.sbStaleN}</div>}
         <div style={{ display:"flex", alignItems:"center", gap:6, padding:"4px 6px" }}>
           <span style={{ width:6,height:6,borderRadius:"50%",background:syncStatus==="synced"?"#10B981":syncStatus==="saving"?"#F59E0B":"#EF4444",flexShrink:0 }}/>
@@ -825,6 +862,18 @@ export default function NoteIO() {
       {showIntent  && <IntentPrompt onConfirm={handleIntent} onSkip={()=>handleIntent("")} t={t}/>}
       {showTask    && <TaskIntentModal color={space.color} onConfirm={handleTaskIntent} onClose={()=>setShowTask(false)} t={t}/>}
       {showSpaceMgr&& <SpaceManager spaces={spaces} onSave={u=>{setSpaces(u);setShowSpaceMgr(false);}} onClose={()=>setShowSpaceMgr(false)} t={t}/>}
+      {showDeleteConfirm && (
+        <div style={m.overlay} onClick={()=>setShowDeleteConfirm(null)}>
+          <div style={{ ...m.box, maxWidth:360 }} onClick={e=>e.stopPropagation()}>
+            <div style={m.q}>{t.deleteConfirmQ}</div>
+            <div style={m.sub}>{t.deleteConfirmSub}</div>
+            <div style={m.row}>
+              <button style={m.skip} onClick={()=>setShowDeleteConfirm(null)}>{t.deleteConfirmNo}</button>
+              <button style={{ ...m.ok, background:"#EF4444" }} onClick={()=>deleteNote(showDeleteConfirm)}>{t.deleteConfirmYes}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Mobile drawer */}
       {isMobile && showDrawer && (
@@ -887,10 +936,20 @@ export default function NoteIO() {
               )}
               <div style={{ display:"flex", gap:8, alignItems:"center" }}>
                 <input style={s.searchBox} placeholder={t.listSearch} value={search} onChange={e=>setSearch(e.target.value)}/>
+                <button style={{ ...s.ctrlBtn, ...(showArchived?{background:space.color+"18",color:space.color,borderColor:space.color+"44"}:{}) }}
+                  onClick={()=>setShowArchived(v=>!v)}>
+                  {showArchived ? "📦" : "📋"}
+                </button>
                 <button style={{ ...s.ctrlBtn, ...(sortOrder==="desc"?{color:space.color}:{}) }} onClick={()=>setSortOrder(v=>v==="desc"?"asc":"desc")}>{sortOrder==="desc"?"↓":"↑"}</button>
                 <button style={{ ...s.ctrlBtn, ...(showDate||dateFrom||dateTo?{color:space.color,background:space.color+"15"}:{}) }} onClick={()=>setShowDate(v=>!v)}>📅</button>
                 {!isMobile && <button style={{ ...s.ctrlBtn, background:space.color, color:"#fff", border:"none" }} onClick={createNote}>{t.listNew}</button>}
               </div>
+              {showArchived && (
+                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                  <span style={{ fontSize:12, color:"#7C3AED", fontWeight:500 }}>📦 {t.listShowArchived}</span>
+                  <span style={s.badge}>{archivedN}</span>
+                </div>
+              )}
               {showDate && (
                 <div style={{ display:"flex", gap:12, flexWrap:"wrap", alignItems:"center" }}>
                   <div style={{ display:"flex", gap:6, alignItems:"center" }}><span style={{ fontSize:11, color:"#A8A29E" }}>{t.tvFrom}</span><input type="date" style={s.dateInp} value={dateFrom} onChange={e=>setDateFrom(e.target.value)}/></div>
@@ -905,17 +964,34 @@ export default function NoteIO() {
                 const stale=daysSince(note.lastOpened)>=30;
                 const done=note.tasks.filter(t=>t.done).length;
                 return (
-                  <div key={note.id} style={{ ...s.noteRow, opacity:stale?.55:1 }} onClick={()=>openNote(note)}>
-                    <div style={{ flex:1, minWidth:0, display:"flex", flexDirection:"column", gap:3 }}>
+                  <div key={note.id} style={{ ...s.noteRow, opacity:stale&&!note.archived?.55:1 }}>
+                    <div style={{ flex:1, minWidth:0, display:"flex", flexDirection:"column", gap:3, cursor:"pointer" }} onClick={()=>openNote(note)}>
                       <div style={{ fontSize:14, fontWeight:600, color:"#1C1917" }}>{note.title||t.listNoTitle}</div>
                       {note.intent && <div style={{ fontSize:11, color:"#A8A29E", fontStyle:"italic" }}>→ {note.intent}</div>}
                       <div style={{ fontSize:12, color:"#78716C", overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{note.content.slice(0,72)}{note.content.length>72?"…":""}</div>
                     </div>
                     <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4, flexShrink:0 }}>
-                      <div style={{ fontSize:10, color:"#A8A29E" }}>{note.updatedAt}</div>
+                      <div style={{ display:"flex", gap:4, alignItems:"center" }}>
+                        <div style={{ fontSize:10, color:"#A8A29E" }}>{note.updatedAt}</div>
+                        <div style={{ display:"flex", gap:2 }}>
+                          {note.archived ? (
+                            <button style={s.rowAction} onClick={e=>{e.stopPropagation();unarchiveNote(note.id);}} title={t.unarchiveBtn}>
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+                            </button>
+                          ) : (
+                            <button style={s.rowAction} onClick={e=>{e.stopPropagation();archiveNote(note.id);}} title={t.archiveBtn}>
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+                            </button>
+                          )}
+                          <button style={{ ...s.rowAction, color:"#EF4444" }} onClick={e=>{e.stopPropagation();setShowDeleteConfirm(note.id);}} title={t.deleteBtn}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                          </button>
+                        </div>
+                      </div>
                       <div style={{ display:"flex", gap:4, flexWrap:"wrap", justifyContent:"flex-end" }}>{note.tags.map(t=><span key={t} style={s.tinyTag}>{t}</span>)}</div>
                       {note.tasks.length>0 && <div style={{ fontSize:10, color:"#A8A29E" }}>{done}/{note.tasks.length}</div>}
-                      {stale && <div style={{ width:6,height:6,borderRadius:"50%",background:"#F59E0B" }}/>}
+                      {stale && !note.archived && <div style={{ width:6,height:6,borderRadius:"50%",background:"#F59E0B" }}/>}
+                      {note.archived && <span style={{ fontSize:9, color:"#7C3AED", background:"#EDE9FE", padding:"1px 5px", borderRadius:3 }}>📦</span>}
                     </div>
                   </div>
                 );
@@ -927,17 +1003,32 @@ export default function NoteIO() {
         {/* EDITOR */}
         {view==="editor" && active && (
           <div style={{ display:"flex", flexDirection:"column", height:"100%", overflowY:"auto" }}>
-            {daysSince(active.lastOpened)>=30 && (
+            {daysSince(active.lastOpened)>=30 && !active.archived && (
               <div style={s.staleBar}>
                 ⏳ {daysSince(active.lastOpened)} {t.edStale}
-                <button style={s.staleBtn}>{t.edKeep}</button>
-                <button style={{ ...s.staleBtn, color:"#EF4444" }}>{t.edDelete}</button>
+                <button style={s.staleBtn} onClick={()=>{ saveNote(); setView("list"); }}>{t.edKeep}</button>
+                <button style={{ ...s.staleBtn, color:"#EF4444" }} onClick={()=>setShowDeleteConfirm(active.id)}>{t.edDelete}</button>
+              </div>
+            )}
+            {active.archived && (
+              <div style={{ ...s.staleBar, background:"#EDE9FE", color:"#5B21B6" }}>
+                📦 {t.archivedBadge}
+                <button style={{ ...s.staleBtn, borderColor:"#7C3AED", color:"#5B21B6" }} onClick={()=>unarchiveNote(active.id)}>{t.unarchiveBtn}</button>
+                <button style={{ ...s.staleBtn, color:"#EF4444", borderColor:"#EF4444" }} onClick={()=>setShowDeleteConfirm(active.id)}>{t.deleteBtn}</button>
               </div>
             )}
             <div style={{ display:"flex", alignItems:"center", gap:10, padding:"12px 20px", borderBottom:"1px solid #E7E5E4" }}>
               <button style={s.backBtn} onClick={()=>{ saveNote(); setView("list"); }}>{t.edBack}</button>
               {active.intent && !isMobile && <div style={{ flex:1, fontSize:12, color:"#A8A29E", fontStyle:"italic", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>→ {active.intent}</div>}
-              <button style={{ ...s.ctrlBtn, background:space.color, color:"#fff", border:"none", marginLeft:"auto" }} onClick={saveNote}>{t.edSave}</button>
+              <div style={{ display:"flex", gap:6, marginLeft:"auto" }}>
+                {!active.archived && <button style={{ ...s.ctrlBtn, color:"#78716C" }} onClick={()=>archiveNote(active.id)} title={t.archiveBtn}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+                </button>}
+                <button style={{ ...s.ctrlBtn, color:"#EF4444", borderColor:"#FECACA" }} onClick={()=>setShowDeleteConfirm(active.id)} title={t.deleteBtn}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                </button>
+                <button style={{ ...s.ctrlBtn, background:space.color, color:"#fff", border:"none" }} onClick={saveNote}>{t.edSave}</button>
+              </div>
             </div>
             <div style={{ flex:1, padding:"20px", display:"flex", flexDirection:"column", gap:12, overflowY:"auto" }}>
               <input ref={titleRef} style={s.titleInp} value={active.title} placeholder={t.edTitlePh} onChange={e=>setActive(p=>({...p,title:e.target.value}))}/>
@@ -1137,7 +1228,8 @@ const s = {
   dateInp: { border:"1px solid #E7E5E4", borderRadius:6, padding:"5px 8px", fontSize:12, fontFamily:"inherit", color:"#1C1917", background:"#FAFAF9", outline:"none" },
   clearBtn:{ background:"transparent", border:"none", fontSize:12, color:"#A8A29E", cursor:"pointer", fontFamily:"inherit", textDecoration:"underline" },
   empty:   { color:"#A8A29E", fontSize:13, padding:"40px 20px", textAlign:"center" },
-  noteRow: { display:"flex", justifyContent:"space-between", gap:16, padding:"13px 10px", borderRadius:8, cursor:"pointer", borderBottom:"1px solid #F5F5F4" },
+  noteRow: { display:"flex", justifyContent:"space-between", gap:16, padding:"13px 10px", borderRadius:8, borderBottom:"1px solid #F5F5F4" },
+  rowAction:{ background:"transparent", border:"none", color:"#A8A29E", cursor:"pointer", padding:4, borderRadius:4, display:"flex", alignItems:"center", justifyContent:"center", transition:"color .15s" },
   tinyTag: { fontSize:10, padding:"2px 6px", borderRadius:4, background:"#F5F5F4", color:"#78716C" },
   staleBar:{ background:"#FEF3C7", padding:"10px 20px", display:"flex", alignItems:"center", gap:10, fontSize:12, color:"#92400E", flexShrink:0 },
   staleBtn:{ background:"transparent", border:"1px solid #D97706", borderRadius:5, padding:"3px 10px", fontSize:11, cursor:"pointer", color:"#92400E", fontFamily:"inherit" },
