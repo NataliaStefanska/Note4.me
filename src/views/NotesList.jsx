@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 import { useIsMobile } from "../hooks/useIsMobile";
@@ -17,10 +18,11 @@ export default function NotesList() {
     t, space, notes, filtered, search, setSearch, showArchived, setShowArchived,
     sortOrder, setSortOrder, showDate, setShowDate, dateFrom, setDateFrom,
     dateTo, setDateTo, archivedN, quickCapture, openNote, archiveNote,
-    unarchiveNote, setShowDeleteConfirm,
+    unarchiveNote, setShowDeleteConfirm, reorderNotes,
   } = useApp();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
+  const [dragOverId, setDragOverId] = useState(null);
 
   function handleOpenNote(note) {
     openNote(note);
@@ -30,6 +32,28 @@ export default function NotesList() {
   function handleQuickCapture() {
     quickCapture();
     navigate("/editor");
+  }
+
+  function handleDragStart(e, noteId) {
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", noteId);
+  }
+
+  function handleDragOver(e, noteId) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (dragOverId !== noteId) setDragOverId(noteId);
+  }
+
+  function handleDrop(e, dropNoteId) {
+    e.preventDefault();
+    const dragId = e.dataTransfer.getData("text/plain");
+    setDragOverId(null);
+    if (dragId && dragId !== dropNoteId) reorderNotes(dragId, dropNoteId);
+  }
+
+  function handleDragEnd() {
+    setDragOverId(null);
   }
 
   return (
@@ -71,8 +95,18 @@ export default function NotesList() {
         {filtered.map(note=>{
           const stale=daysSince(note.lastOpened)>=30;
           const done=note.tasks.filter(tk=>tk.done).length;
+          const isDragOver = dragOverId === note.id;
           return (
-            <div key={note.id} style={{ ...s.noteRow, opacity:stale&&!note.archived?.55:1 }}>
+            <div key={note.id}
+              draggable
+              onDragStart={e=>handleDragStart(e, note.id)}
+              onDragOver={e=>handleDragOver(e, note.id)}
+              onDrop={e=>handleDrop(e, note.id)}
+              onDragEnd={handleDragEnd}
+              style={{ ...s.noteRow, opacity:stale&&!note.archived?.55:1, ...(isDragOver?{borderTop:"2px solid "+space.color}:{}) }}>
+              <div style={{ display:"flex", alignItems:"center", marginRight:6, cursor:"grab", color:"var(--text-faint)", fontSize:14 }} onMouseDown={e=>e.stopPropagation()}>
+                {"\u2630"}
+              </div>
               <div style={{ flex:1, minWidth:0, display:"flex", flexDirection:"column", gap:3, cursor:"pointer" }} onClick={()=>handleOpenNote(note)}>
                 <div style={{ fontSize:14, fontWeight:600, color:"#1C1917" }}>{search ? <Highlight text={note.title||t.listNoTitle} query={search}/> : (note.title||t.listNoTitle)}</div>
                 {note.intent && <div style={{ fontSize:11, color:"#A8A29E", fontStyle:"italic" }}>{"\u2192"} {search ? <Highlight text={note.intent} query={search}/> : note.intent}</div>}

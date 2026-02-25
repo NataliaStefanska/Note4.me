@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useApp } from "../context/AppContext";
 import { useIsMobile } from "../hooks/useIsMobile";
 import { daysSince } from "../constants/data";
@@ -14,12 +14,13 @@ export default function NoteEditor() {
     t, space, active, setActive, allNotes, activeSpace, linkSearch, setLinkSearch,
     autoSaveStatus, setAutoSaveStatus, showTagPick, setShowTagPick,
     newTask, setNewTask, titleRef, editorRef,
-    saveNote, triggerAutoSave, toggleTask, addTask, setTaskDueDate, toggleTag, openNote, handleLinkSelect,
+    saveNote, triggerAutoSave, toggleTask, addTask, setTaskDueDate, reorderTasks, toggleTag, openNote, handleLinkSelect,
     archiveNote, unarchiveNote, setShowDeleteConfirm,
   } = useApp();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const contentWrapRef = useRef(null);
+  const [taskDragOverId, setTaskDragOverId] = useState(null);
 
   useEffect(() => {
     if (!active) navigate("/", { replace: true });
@@ -115,8 +116,15 @@ export default function NoteEditor() {
             const today = new Date().toISOString().split("T")[0];
             const overdue = task.dueDate && !task.done && task.dueDate < today;
             const dueToday = task.dueDate && task.dueDate === today;
+            const isOver = taskDragOverId === task.id;
             return (
-            <div key={task.id} style={{ display:"flex", alignItems:"center", gap:8 }}>
+            <div key={task.id} draggable
+              onDragStart={e=>{e.dataTransfer.effectAllowed="move";e.dataTransfer.setData("text/plain",task.id);}}
+              onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect="move";if(taskDragOverId!==task.id)setTaskDragOverId(task.id);}}
+              onDrop={e=>{e.preventDefault();const dragId=e.dataTransfer.getData("text/plain");setTaskDragOverId(null);if(dragId&&dragId!==task.id)reorderTasks(dragId,task.id);}}
+              onDragEnd={()=>setTaskDragOverId(null)}
+              style={{ display:"flex", alignItems:"center", gap:8, ...(isOver?{borderTop:"2px solid "+space.color}:{}) }}>
+              <span style={{ cursor:"grab", color:"var(--text-faint)", fontSize:12 }}>{"\u2630"}</span>
               <div style={{ ...s.chk, ...(task.done?{background:space.color,borderColor:space.color}:{}) }} onClick={()=>toggleTask(task.id)}>
                 {task.done && <span style={{ color:"#fff", fontSize:10 }}>{"\u2713"}</span>}
               </div>

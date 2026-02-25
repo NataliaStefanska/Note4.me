@@ -251,6 +251,34 @@ export function AppProvider({ children }) {
     });
   }
 
+  function reorderNotes(dragId, dropId) {
+    if (dragId === dropId) return;
+    setAllNotes(p => {
+      const arr = [...(p[activeSpace] || [])];
+      const dragIdx = arr.findIndex(n => n.id === dragId);
+      const dropIdx = arr.findIndex(n => n.id === dropId);
+      if (dragIdx === -1 || dropIdx === -1) return p;
+      const [item] = arr.splice(dragIdx, 1);
+      arr.splice(dropIdx, 0, item);
+      return { ...p, [activeSpace]: arr };
+    });
+  }
+
+  function reorderTasks(dragId, dropId) {
+    if (dragId === dropId) return;
+    setActive(p => {
+      const arr = [...p.tasks];
+      const dragIdx = arr.findIndex(t => t.id === dragId);
+      const dropIdx = arr.findIndex(t => t.id === dropId);
+      if (dragIdx === -1 || dropIdx === -1) return p;
+      const [item] = arr.splice(dragIdx, 1);
+      arr.splice(dropIdx, 0, item);
+      const updated = { ...p, tasks: arr };
+      setAllNotes(prev => ({ ...prev, [activeSpace]: (prev[activeSpace] || []).map(n => n.id === updated.id ? { ...updated } : n) }));
+      return updated;
+    });
+  }
+
   function deleteNote(noteId) {
     setAllNotes(p=>({...p,[activeSpace]:(p[activeSpace]||[]).filter(n=>n.id!==noteId)}));
     if (active && active.id===noteId) { setActive(null); }
@@ -291,7 +319,7 @@ export function AppProvider({ children }) {
     switchSpace, createNote, createTask, quickCapture, handleIntent, handleTaskIntent,
     openNote, saveNote, triggerAutoSave, toggleTask, toggleTaskInList, toggleStandaloneTask,
     addTask, setTaskDueDate, setStandaloneTaskDueDate,
-    handleLinkSelect, toggleTag, deleteNote, archiveNote, unarchiveNote,
+    handleLinkSelect, toggleTag, reorderNotes, reorderTasks, deleteNote, archiveNote, unarchiveNote,
     handleLogin, handleLogout,
   };
 
