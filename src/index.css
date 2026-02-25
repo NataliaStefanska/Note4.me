@@ -29,3 +29,15 @@ body {
 button {
   font-family: inherit;
 }
+
+@keyframes fadeInOut {
+  0%   { opacity:0; transform:translateX(-50%) translateY(-8px); }
+  15%  { opacity:1; transform:translateX(-50%) translateY(0); }
+  75%  { opacity:1; transform:translateX(-50%) translateY(0); }
+  100% { opacity:0; transform:translateX(-50%) translateY(-8px); }
+}
+
+[contenteditable] b, [contenteditable] strong { font-weight:700; }
+[contenteditable] i, [contenteditable] em { font-style:italic; }
+[contenteditable] u { text-decoration:underline; }
+[contenteditable] s, [contenteditable] strike { text-decoration:line-through; }
