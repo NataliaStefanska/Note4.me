@@ -144,11 +144,14 @@ export function AppProvider({ children }) {
     setTimeout(()=>{ if(titleRef.current) titleRef.current.focus(); },80);
   }
 
-  function handleTaskIntent(why, what) {
+  function handleTaskIntent(why, what, dueDate) {
     const task = { id:"t"+Date.now(), text:what, done:false, intent:why,
-      createdAt:TODAY.toISOString().split("T")[0] };
+      createdAt:TODAY.toISOString().split("T")[0], dueDate:dueDate||"" };
     setStandaloneTasks(p=>({...p,[activeSpace]:[task,...(p[activeSpace]||[])]}));
     setShowTask(false);
+  }
+  function setStandaloneTaskDueDate(taskId, dueDate) {
+    setStandaloneTasks(prev=>({...prev,[activeSpace]:(prev[activeSpace]||[]).map(t=>t.id===taskId?{...t,dueDate}:t)}));
   }
 
   function openNote(note) {
@@ -205,7 +208,14 @@ export function AppProvider({ children }) {
   function toggleStandaloneTask(taskId) {
     setStandaloneTasks(prev=>({...prev,[activeSpace]:(prev[activeSpace]||[]).map(t=>t.id===taskId?{...t,done:!t.done}:t)}));
   }
-  function addTask() { if(!newTask.trim()) return; setActive(p=>({...p,tasks:[...p.tasks,{id:"t"+Date.now(),text:newTask,done:false}]})); setNewTask(""); }
+  function addTask(dueDate) { if(!newTask.trim()) return; setActive(p=>({...p,tasks:[...p.tasks,{id:"t"+Date.now(),text:newTask,done:false,dueDate:dueDate||""}]})); setNewTask(""); }
+  function setTaskDueDate(taskId, dueDate) {
+    setActive(p=>{
+      const updated = {...p, tasks:p.tasks.map(tk=>tk.id===taskId?{...tk,dueDate}:tk)};
+      setAllNotes(prev=>({...prev,[activeSpace]:(prev[activeSpace]||[]).map(n=>n.id===updated.id?{...updated}:n)}));
+      return updated;
+    });
+  }
 
   function handleLinkSelect(note) {
     const editor = editorRef.current;
@@ -274,7 +284,8 @@ export function AppProvider({ children }) {
     // actions
     switchSpace, createNote, createTask, quickCapture, handleIntent, handleTaskIntent,
     openNote, saveNote, triggerAutoSave, toggleTask, toggleTaskInList, toggleStandaloneTask,
-    addTask, handleLinkSelect, toggleTag, deleteNote, archiveNote, unarchiveNote,
+    addTask, setTaskDueDate, setStandaloneTaskDueDate,
+    handleLinkSelect, toggleTag, deleteNote, archiveNote, unarchiveNote,
     handleLogin, handleLogout,
   };
 

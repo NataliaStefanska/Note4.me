@@ -1,7 +1,22 @@
 import { useState } from "react";
 import { s } from "../styles/appStyles";
 
-export default function TasksView({ notes, color, allTags, onOpenNote, onCreate, onToggleTask, standaloneTasks, onToggleStandaloneTask, t }) {
+function DueBadge({ dueDate, done }) {
+  if (!dueDate) return null;
+  const today = new Date().toISOString().split("T")[0];
+  const overdue = !done && dueDate < today;
+  const isToday = dueDate === today;
+  const color = overdue ? "#EF4444" : isToday ? "#D97706" : "#A8A29E";
+  const bg = overdue ? "#FEF2F2" : isToday ? "#FFFBEB" : "transparent";
+  const label = overdue ? "\u26A0" : isToday ? "\u23F0" : "";
+  return (
+    <span style={{ fontSize:10, color, background:bg, borderRadius:4, padding:"1px 5px", whiteSpace:"nowrap" }}>
+      {label}{label?" ":""}{dueDate}
+    </span>
+  );
+}
+
+export default function TasksView({ notes, color, allTags, onOpenNote, onCreate, onToggleTask, standaloneTasks, onToggleStandaloneTask, onSetDueDate, onSetStandaloneDueDate, t }) {
   const [tag, setTag] = useState(null);
   const [sort, setSort] = useState("desc");
   const [from, setFrom] = useState("");
@@ -87,7 +102,12 @@ export default function TasksView({ notes, color, allTags, onOpenNote, onCreate,
               {tk.done && <span style={{ color:"#fff", fontSize:10 }}>{"\u2713"}</span>}
             </div>
             <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ fontSize:14, fontWeight:500, textDecoration:tk.done?"line-through":"none", color:tk.done?"#A8A29E":"#1C1917" }}>{tk.text}</div>
+              <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                <span style={{ fontSize:14, fontWeight:500, textDecoration:tk.done?"line-through":"none", color:tk.done?"#A8A29E":"#1C1917", flex:1 }}>{tk.text}</span>
+                <DueBadge dueDate={tk.dueDate} done={tk.done}/>
+                <input type="date" value={tk.dueDate||""} onChange={e => tk.standalone ? onSetStandaloneDueDate?.(tk.id, e.target.value) : onSetDueDate?.(tk.note?.id, tk.id, e.target.value)}
+                  style={{ ...s.dateInp, fontSize:10, padding:"1px 3px", width:24, opacity:0.3, cursor:"pointer" }} title={t.edDueDate||"Due date"}/>
+              </div>
               {tk.standalone ? (
                 <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", marginTop:3 }}>
                   <span style={{ fontSize:11, color:"#A8A29E" }}>{tk.noteDate}</span>

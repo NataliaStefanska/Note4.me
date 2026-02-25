@@ -40,6 +40,7 @@ export const T = {
     linkSearchPh:"Szukaj notatki...", noBacklinks:"Brak powi\u0105za\u0144",
     autoSaved:"Zapisano", autoSaving:"Zapisywanie...",
     quickCapturePh:"Szybka notatka",
+    edDueDate:"Termin",
   },
   en: {
     loginTagline:"Your notes. Your rules.", loginSync:"Cross-device synchronization",
@@ -82,5 +83,6 @@ export const T = {
     linkSearchPh:"Search note...", noBacklinks:"No connections",
     autoSaved:"Saved", autoSaving:"Saving...",
     quickCapturePh:"Quick note",
+    edDueDate:"Due date",
   },
 };

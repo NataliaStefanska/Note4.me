@@ -14,7 +14,7 @@ export default function NoteEditor() {
     t, space, active, setActive, allNotes, activeSpace, linkSearch, setLinkSearch,
     autoSaveStatus, setAutoSaveStatus, showTagPick, setShowTagPick,
     newTask, setNewTask, titleRef, editorRef,
-    saveNote, triggerAutoSave, toggleTask, addTask, toggleTag, openNote, handleLinkSelect,
+    saveNote, triggerAutoSave, toggleTask, addTask, setTaskDueDate, toggleTag, openNote, handleLinkSelect,
     archiveNote, unarchiveNote, setShowDeleteConfirm,
   } = useApp();
   const isMobile = useIsMobile();
@@ -111,14 +111,23 @@ export default function NoteEditor() {
         </div>
         <div style={{ ...s.toolSec, minWidth:isMobile?"100%":220 }}>
           <div style={s.toolLbl}>{t.edTasks}</div>
-          {active.tasks.map(task=>(
+          {active.tasks.map(task=>{
+            const today = new Date().toISOString().split("T")[0];
+            const overdue = task.dueDate && !task.done && task.dueDate < today;
+            const dueToday = task.dueDate && task.dueDate === today;
+            return (
             <div key={task.id} style={{ display:"flex", alignItems:"center", gap:8 }}>
               <div style={{ ...s.chk, ...(task.done?{background:space.color,borderColor:space.color}:{}) }} onClick={()=>toggleTask(task.id)}>
                 {task.done && <span style={{ color:"#fff", fontSize:10 }}>{"\u2713"}</span>}
               </div>
-              <span style={{ fontSize:13, color:"#44403C", textDecoration:task.done?"line-through":"none" }}>{task.text}</span>
-            </div>
-          ))}
+              <span style={{ fontSize:13, color:"#44403C", textDecoration:task.done?"line-through":"none", flex:1 }}>{task.text}</span>
+              <input type="date" value={task.dueDate||""} onChange={e=>setTaskDueDate(task.id,e.target.value)}
+                style={{ ...s.dateInp, fontSize:10, padding:"2px 4px", width:task.dueDate?110:28, opacity:task.dueDate?1:0.4,
+                  color: overdue?"#EF4444":dueToday?"#D97706":"#78716C",
+                  borderColor: overdue?"#FECACA":dueToday?"#FDE68A":"#E7E5E4" }}
+                title={t.edDueDate||"Due date"}/>
+            </div>);
+          })}
           <div style={{ display:"flex", gap:6, alignItems:"center", marginTop:2 }}>
             <input style={s.taskInp} placeholder={t.edAddTask} value={newTask}
               onChange={e=>setNewTask(e.target.value)}
