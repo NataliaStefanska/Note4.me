@@ -3,12 +3,42 @@
   line-height: 1.5;
   font-weight: 400;
   color-scheme: light;
-  color: #1C1917;
-  background-color: #FAFAF9;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  --bg-app: #FAFAF9;
+  --bg-card: #F5F5F4;
+  --bg-input: #FAFAF9;
+  --bg-surface: #fff;
+  --border: #E7E5E4;
+  --border-light: #F5F5F4;
+  --border-dashed: #D6D3D1;
+  --text-primary: #1C1917;
+  --text-secondary: #44403C;
+  --text-muted: #78716C;
+  --text-faint: #A8A29E;
+  --shadow: rgba(0,0,0,.1);
+
+  color: var(--text-primary);
+  background-color: var(--bg-app);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg-app: #0C0A09;
+  --bg-card: #1C1917;
+  --bg-input: #292524;
+  --bg-surface: #1C1917;
+  --border: #3F3C3A;
+  --border-light: #292524;
+  --border-dashed: #57534E;
+  --text-primary: #E7E5E4;
+  --text-secondary: #A8A29E;
+  --text-muted: #78716C;
+  --text-faint: #57534E;
+  --shadow: rgba(0,0,0,.4);
 }
 
 * {
@@ -30,6 +60,10 @@ button {
   font-family: inherit;
 }
 
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 @keyframes fadeInOut {
   0%   { opacity:0; transform:translateX(-50%) translateY(-8px); }
   15%  { opacity:1; transform:translateX(-50%) translateY(0); }
@@ -41,3 +75,62 @@ button {
 [contenteditable] i, [contenteditable] em { font-style:italic; }
 [contenteditable] u { text-decoration:underline; }
 [contenteditable] s, [contenteditable] strike { text-decoration:line-through; }
+
+/* Tiptap editor */
+.tiptap-content {
+  flex: 1;
+  overflow-y: auto;
+}
+.tiptap-content .tiptap {
+  outline: none;
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+  font-family: inherit;
+  padding: 0;
+  min-height: 100%;
+}
+.tiptap-content .tiptap > *:first-child { margin-top: 0; }
+.tiptap-content .tiptap p { margin: 0 0 0.4em; }
+.tiptap-content .tiptap h1 { font-size: 1.5em; font-weight: 700; margin: 0.6em 0 0.3em; color: var(--text-primary); }
+.tiptap-content .tiptap h2 { font-size: 1.25em; font-weight: 600; margin: 0.5em 0 0.25em; color: var(--text-primary); }
+.tiptap-content .tiptap h3 { font-size: 1.1em; font-weight: 600; margin: 0.4em 0 0.2em; color: var(--text-primary); }
+.tiptap-content .tiptap ul,
+.tiptap-content .tiptap ol { padding-left: 1.5em; margin: 0.3em 0; }
+.tiptap-content .tiptap li { margin: 0.1em 0; }
+.tiptap-content .tiptap blockquote {
+  border-left: 3px solid var(--border-dashed);
+  padding-left: 1em;
+  margin: 0.5em 0;
+  color: var(--text-muted);
+  font-style: italic;
+}
+.tiptap-content .tiptap pre {
+  background: var(--bg-card);
+  border-radius: 6px;
+  padding: 0.75em 1em;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.9em;
+  overflow-x: auto;
+  margin: 0.5em 0;
+}
+.tiptap-content .tiptap code {
+  background: var(--bg-card);
+  border-radius: 3px;
+  padding: 0.15em 0.3em;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.9em;
+}
+.tiptap-content .tiptap pre code { background: none; padding: 0; border-radius: 0; }
+.tiptap-content .tiptap hr { border: none; border-top: 1px solid var(--border); margin: 1em 0; }
+
+/* Tiptap placeholder */
+.tiptap-content .tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--text-faint);
+  font-size: 14px;
+  line-height: 1.7;
+  pointer-events: none;
+  height: 0;
+}

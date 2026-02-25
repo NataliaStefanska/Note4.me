@@ -1,24 +1,26 @@
 import { useNavigate } from "react-router-dom";
-import { useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useApp } from "../context/AppContext";
 import { useIsMobile } from "../hooks/useIsMobile";
 import { daysSince } from "../constants/data";
+import { contentToHtml } from "../utils/helpers";
 import { s } from "../styles/appStyles";
-import FloatingFormatBar from "../components/FloatingFormatBar";
+import TiptapEditor from "../components/TiptapEditor";
 import LinkAutocomplete from "../components/LinkAutocomplete";
 import TagPicker from "../components/TagPicker";
 
 export default function NoteEditor() {
   const {
     t, space, active, setActive, allNotes, activeSpace, linkSearch, setLinkSearch,
-    autoSaveStatus, setAutoSaveStatus, contentEmpty, showTagPick, setShowTagPick,
-    newTask, setNewTask, titleRef, contentEditRef, contentWrapRef,
-    saveNote, triggerAutoSave, toggleTask, addTask, toggleTag, openNote,
-    handleContentKeyDown, handleContentPaste, handleContentInput, handleLinkSelect,
+    autoSaveStatus, setAutoSaveStatus, showTagPick, setShowTagPick,
+    newTask, setNewTask, titleRef, editorRef,
+    saveNote, triggerAutoSave, toggleTask, addTask, setTaskDueDate, reorderTasks, toggleTag, openNote, handleLinkSelect,
     archiveNote, unarchiveNote, setShowDeleteConfirm,
   } = useApp();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
+  const contentWrapRef = useRef(null);
+  const [taskDragOverId, setTaskDragOverId] = useState(null);
 
   useEffect(() => {
     if (!active) navigate("/", { replace: true });
@@ -71,22 +73,19 @@ export default function NoteEditor() {
           </button>
         </div>
       </div>
-      <div style={{ flex:1, padding:"20px", display:"flex", flexDirection:"column", gap:12, overflowY:"auto" }}>
+      <div style={{ flex:1, padding:"20px", display:"flex", flexDirection:"column", gap:12, overflow:"hidden" }}>
         <input ref={titleRef} style={s.titleInp} value={active.title} placeholder={t.edTitlePh} onChange={e=>{setActive(p=>({...p,title:e.target.value}));triggerAutoSave();}}/>
-        <div ref={contentWrapRef} style={{ position:"relative", flex:1, minHeight:isMobile?160:220 }}>
-          <FloatingFormatBar wrapRef={contentWrapRef} contentRef={contentEditRef}/>
-          {contentEmpty && <div style={{ position:"absolute", top:0, left:0, color:"#A8A29E", fontSize:14, lineHeight:1.7, pointerEvents:"none", userSelect:"none" }}>{t.edContentPh}</div>}
-          <div ref={contentEditRef}
-            contentEditable suppressContentEditableWarning
-            style={{ ...s.contentArea, minHeight:isMobile?160:220, outline:"none" }}
-            onInput={handleContentInput}
-            onKeyDown={(e) => {
-              if (linkSearch) {
-                if (e.key === "Escape") { setLinkSearch(null); e.preventDefault(); return; }
-              }
-              handleContentKeyDown(e);
-            }}
-            onPaste={handleContentPaste}/>
+        <div ref={contentWrapRef} style={{ position:"relative", flex:1, minHeight:isMobile?160:220, display:"flex", flexDirection:"column" }}>
+          <TiptapEditor
+            key={active.id}
+            content={contentToHtml(active.content)}
+            placeholder={t.edContentPh}
+            editorRef={editorRef}
+            wrapRef={contentWrapRef}
+            onUpdate={triggerAutoSave}
+            onLinkSearch={setLinkSearch}
+            isMobile={isMobile}
+          />
           {linkSearch && (
             <LinkAutocomplete
               notes={(allNotes[activeSpace]||[]).filter(n=>n.id!==active.id && !n.archived)}
@@ -113,14 +112,30 @@ export default function NoteEditor() {
         </div>
         <div style={{ ...s.toolSec, minWidth:isMobile?"100%":220 }}>
           <div style={s.toolLbl}>{t.edTasks}</div>
-          {active.tasks.map(task=>(
-            <div key={task.id} style={{ display:"flex", alignItems:"center", gap:8 }}>
+          {active.tasks.map(task=>{
+            const today = new Date().toISOString().split("T")[0];
+            const overdue = task.dueDate && !task.done && task.dueDate < today;
+            const dueToday = task.dueDate && task.dueDate === today;
+            const isOver = taskDragOverId === task.id;
+            return (
+            <div key={task.id} draggable
+              onDragStart={e=>{e.dataTransfer.effectAllowed="move";e.dataTransfer.setData("text/plain",task.id);}}
+              onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect="move";if(taskDragOverId!==task.id)setTaskDragOverId(task.id);}}
+              onDrop={e=>{e.preventDefault();const dragId=e.dataTransfer.getData("text/plain");setTaskDragOverId(null);if(dragId&&dragId!==task.id)reorderTasks(dragId,task.id);}}
+              onDragEnd={()=>setTaskDragOverId(null)}
+              style={{ display:"flex", alignItems:"center", gap:8, ...(isOver?{borderTop:"2px solid "+space.color}:{}) }}>
+              <span style={{ cursor:"grab", color:"var(--text-faint)", fontSize:12 }}>{"\u2630"}</span>
               <div style={{ ...s.chk, ...(task.done?{background:space.color,borderColor:space.color}:{}) }} onClick={()=>toggleTask(task.id)}>
                 {task.done && <span style={{ color:"#fff", fontSize:10 }}>{"\u2713"}</span>}
               </div>
-              <span style={{ fontSize:13, color:"#44403C", textDecoration:task.done?"line-through":"none" }}>{task.text}</span>
-            </div>
-          ))}
+              <span style={{ fontSize:13, color:"#44403C", textDecoration:task.done?"line-through":"none", flex:1 }}>{task.text}</span>
+              <input type="date" draggable={false} onMouseDown={e=>e.stopPropagation()} value={task.dueDate||""} onChange={e=>setTaskDueDate(task.id,e.target.value)}
+                style={{ ...s.dateInp, fontSize:10, padding:"2px 4px", minWidth:110,
+                  color: overdue?"#EF4444":dueToday?"#D97706":"#78716C",
+                  borderColor: overdue?"#FECACA":dueToday?"#FDE68A":"#E7E5E4" }}
+                title={t.edDueDate||"Due date"}/>
+            </div>);
+          })}
           <div style={{ display:"flex", gap:6, alignItems:"center", marginTop:2 }}>
             <input style={s.taskInp} placeholder={t.edAddTask} value={newTask}
               onChange={e=>setNewTask(e.target.value)}

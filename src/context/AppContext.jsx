@@ -2,16 +2,19 @@ import { createContext, useContext, useState, useRef, useEffect, useCallback } f
 import { loginWithGoogle, logout, onAuth, saveUserData, loadUserData } from "../firebase";
 import { TODAY, INITIAL_SPACES, INITIAL_NOTES, daysSince } from "../constants/data";
 import { T } from "../i18n/translations";
-import { textPreview, contentToHtml } from "../utils/helpers";
+import { textPreview } from "../utils/helpers";
+import { initEmbedder, indexNotes, vectorSearch as vsearch, isEmbedderReady } from "../utils/vectorSearch";
 
 const AppContext = createContext(null);
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useApp() {
   return useContext(AppContext);
 }
 
 export function AppProvider({ children }) {
   const [lang,        setLang]        = useState(() => { try { return localStorage.getItem("noteio_lang") || "pl"; } catch { return "pl"; } });
+  const [theme,       setThemeState]  = useState(() => { try { return localStorage.getItem("noteio_theme") || "light"; } catch { return "light"; } });
   const [user,        setUser]        = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [spaces,      setSpaces]      = useState(INITIAL_SPACES);
@@ -36,13 +39,14 @@ export function AppProvider({ children }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
   const [syncStatus,  setSyncStatus]  = useState("idle");
   const [showSaveToast, setShowSaveToast] = useState(false);
-  const [contentEmpty, setContentEmpty] = useState(true);
   const [linkSearch, setLinkSearch] = useState(null);
   const [autoSaveStatus, setAutoSaveStatus] = useState(null);
+  const [searchMode, setSearchMode] = useState("text"); // "text" | "vector"
+  const [embedderStatus, setEmbedderStatus] = useState("idle"); // "idle" | "loading" | "ready" | "error"
+  const [semanticResults, setSemanticResults] = useState(null);
 
   const titleRef = useRef();
-  const contentEditRef = useRef(null);
-  const contentWrapRef = useRef(null);
+  const editorRef = useRef(null);
   const saveTimer = useRef(null);
   const saveToastTimer = useRef(null);
   const autoSaveTimer = useRef(null);
@@ -96,7 +100,12 @@ export function AppProvider({ children }) {
     }, 1500);
   }, [user]);
 
-  useEffect(() => { try { localStorage.setItem("noteio_lang", lang); } catch {} }, [lang]);
+  useEffect(() => { try { localStorage.setItem("noteio_lang", lang); } catch { /* localStorage unavailable */ } }, [lang]);
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    try { localStorage.setItem("noteio_theme", theme); } catch { /* localStorage unavailable */ }
+  }, [theme]);
+  function setTheme(t) { setThemeState(t); }
   useEffect(() => {
     if (!user || authLoading) return;
     syncToFirestore({ spaces, activeSpace, allNotes, standaloneTasks, lang });
@@ -108,16 +117,62 @@ export function AppProvider({ children }) {
   const staleN = notes.filter(n=>!n.archived&&daysSince(n.lastOpened)>=30).length;
   const archivedN = notes.filter(n=>n.archived).length;
 
-  const filtered = notes
+  // Vector search: init embedder on mode switch
+  useEffect(() => {
+    if (searchMode !== "vector") return;
+    if (isEmbedderReady()) { setEmbedderStatus("ready"); return; }
+    setEmbedderStatus("loading");
+    initEmbedder().then(() => setEmbedderStatus("ready")).catch(() => setEmbedderStatus("error"));
+  }, [searchMode]);
+
+  // Vector search: index notes when they change and embedder is ready
+  const vectorSearchTimer = useRef(null);
+  useEffect(() => {
+    if (searchMode !== "vector" || embedderStatus !== "ready") return;
+    indexNotes(notes);
+  }, [notes, searchMode, embedderStatus]);
+
+  // Vector search: debounced semantic query
+  useEffect(() => {
+    if (searchMode !== "vector" || embedderStatus !== "ready" || !search.trim()) {
+      setSemanticResults(null);
+      return;
+    }
+    if (vectorSearchTimer.current) clearTimeout(vectorSearchTimer.current);
+    vectorSearchTimer.current = setTimeout(async () => {
+      const results = await vsearch(search, notes);
+      setSemanticResults(results);
+    }, 400);
+    return () => { if (vectorSearchTimer.current) clearTimeout(vectorSearchTimer.current); };
+  }, [search, notes, searchMode, embedderStatus]);
+
+  const textFiltered = notes
     .filter(n => {
       const ma = showArchived ? !!n.archived : !n.archived;
       const mt = filterTag ? n.tags.includes(filterTag) : true;
-      const ms = search ? n.title.toLowerCase().includes(search.toLowerCase())||textPreview(n.content,99999).toLowerCase().includes(search.toLowerCase()) : true;
+      const q = search.toLowerCase();
+      const ms = search ? (
+        n.title.toLowerCase().includes(q) ||
+        textPreview(n.content,99999).toLowerCase().includes(q) ||
+        n.tags.some(tg => tg.toLowerCase().includes(q)) ||
+        n.tasks.some(tk => tk.text.toLowerCase().includes(q)) ||
+        (n.intent || '').toLowerCase().includes(q)
+      ) : true;
       const mf = dateFrom ? n.updatedAt>=dateFrom : true;
       const mtd= dateTo   ? n.updatedAt<=dateTo   : true;
       return ma&&mt&&ms&&mf&&mtd;
     })
     .sort((a,b)=>sortOrder==="desc"?b.updatedAt.localeCompare(a.updatedAt):a.updatedAt.localeCompare(b.updatedAt));
+
+  const filtered = (searchMode === "vector" && search.trim() && semanticResults)
+    ? semanticResults.filter(n => {
+        const ma = showArchived ? !!n.archived : !n.archived;
+        const mt = filterTag ? n.tags.includes(filterTag) : true;
+        const mf = dateFrom ? n.updatedAt>=dateFrom : true;
+        const mtd= dateTo   ? n.updatedAt<=dateTo   : true;
+        return ma&&mt&&mf&&mtd;
+      })
+    : textFiltered;
 
   function switchSpace(id) { setActiveSpace(id); setActive(null); setFilterTag(null); setSearch(""); setShowDrop(false); setShowArchived(false); }
   function createNote()   { setShowIntent(true); }
@@ -127,10 +182,7 @@ export function AppProvider({ children }) {
       updatedAt:TODAY.toISOString().split("T")[0], lastOpened:TODAY.toISOString().split("T")[0] };
     setAllNotes(p=>({...p,[activeSpace]:[n,...(p[activeSpace]||[])]}));
     setActive({...n});
-    setTimeout(()=>{
-      if(titleRef.current) titleRef.current.focus();
-      if(contentEditRef.current) { contentEditRef.current.innerHTML=''; setContentEmpty(true); }
-    },80);
+    setTimeout(()=>{ if(titleRef.current) titleRef.current.focus(); },80);
   }
 
   function handleIntent(intent) {
@@ -138,27 +190,21 @@ export function AppProvider({ children }) {
       updatedAt:TODAY.toISOString().split("T")[0], lastOpened:TODAY.toISOString().split("T")[0] };
     setAllNotes(p=>({...p,[activeSpace]:[n,...(p[activeSpace]||[])]}));
     setActive({...n}); setShowIntent(false);
-    setTimeout(()=>{
-      if(titleRef.current) titleRef.current.focus();
-      if(contentEditRef.current) { contentEditRef.current.innerHTML=''; setContentEmpty(true); }
-    },80);
+    setTimeout(()=>{ if(titleRef.current) titleRef.current.focus(); },80);
   }
 
-  function handleTaskIntent(why, what) {
+  function handleTaskIntent(why, what, dueDate) {
     const task = { id:"t"+Date.now(), text:what, done:false, intent:why,
-      createdAt:TODAY.toISOString().split("T")[0] };
+      createdAt:TODAY.toISOString().split("T")[0], dueDate:dueDate||"" };
     setStandaloneTasks(p=>({...p,[activeSpace]:[task,...(p[activeSpace]||[])]}));
     setShowTask(false);
+  }
+  function setStandaloneTaskDueDate(taskId, dueDate) {
+    setStandaloneTasks(prev=>({...prev,[activeSpace]:(prev[activeSpace]||[]).map(t=>t.id===taskId?{...t,dueDate}:t)}));
   }
 
   function openNote(note) {
     setActive({...note, lastOpened:TODAY.toISOString().split("T")[0]});
-    setTimeout(() => {
-      if (contentEditRef.current) {
-        contentEditRef.current.innerHTML = contentToHtml(note.content);
-        setContentEmpty(!contentEditRef.current.textContent.trim());
-      }
-    }, 0);
   }
 
   function parseLinkedNotes(html) {
@@ -175,7 +221,7 @@ export function AppProvider({ children }) {
 
   function saveNote(silent) {
     if(!active) return;
-    const content = contentEditRef.current ? contentEditRef.current.innerHTML : active.content;
+    const content = editorRef.current ? editorRef.current.getHTML() : active.content;
     const linkedNotes = parseLinkedNotes(content);
     const updated = {...active, content, linkedNotes, updatedAt:TODAY.toISOString().split("T")[0]};
     setAllNotes(p=>({...p,[activeSpace]:(p[activeSpace]||[]).map(n=>n.id===updated.id?{...updated}:n)}));
@@ -211,76 +257,67 @@ export function AppProvider({ children }) {
   function toggleStandaloneTask(taskId) {
     setStandaloneTasks(prev=>({...prev,[activeSpace]:(prev[activeSpace]||[]).map(t=>t.id===taskId?{...t,done:!t.done}:t)}));
   }
-  function addTask() { if(!newTask.trim()) return; setActive(p=>({...p,tasks:[...p.tasks,{id:"t"+Date.now(),text:newTask,done:false}]})); setNewTask(""); }
+  function addTask(dueDate) { if(!newTask.trim()) return; setActive(p=>({...p,tasks:[...p.tasks,{id:"t"+Date.now(),text:newTask,done:false,dueDate:dueDate||""}]})); setNewTask(""); }
+  function setTaskDueDate(taskId, dueDate) {
+    setActive(p=>{
+      const updated = {...p, tasks:p.tasks.map(tk=>tk.id===taskId?{...tk,dueDate}:tk)};
+      setAllNotes(prev=>({...prev,[activeSpace]:(prev[activeSpace]||[]).map(n=>n.id===updated.id?{...updated}:n)}));
+      return updated;
+    });
+  }
 
-  function handleContentKeyDown(e) {
-    if ((e.ctrlKey||e.metaKey)&&e.key==='b') { e.preventDefault(); document.execCommand('bold'); }
-    if ((e.ctrlKey||e.metaKey)&&e.key==='i') { e.preventDefault(); document.execCommand('italic'); }
-    if ((e.ctrlKey||e.metaKey)&&e.key==='u') { e.preventDefault(); document.execCommand('underline'); }
-    if ((e.ctrlKey||e.metaKey)&&e.shiftKey&&(e.key==='s'||e.key==='S')) { e.preventDefault(); document.execCommand('strikeThrough'); }
-  }
-  function handleContentPaste(e) {
-    e.preventDefault();
-    const text = e.clipboardData.getData('text/plain');
-    document.execCommand('insertText', false, text);
-  }
-  function handleContentInput() {
-    if (contentEditRef.current) setContentEmpty(!contentEditRef.current.textContent.trim());
-    const sel = window.getSelection();
-    if (sel && sel.rangeCount > 0 && contentEditRef.current) {
-      const range = sel.getRangeAt(0);
-      if (contentEditRef.current.contains(range.startContainer)) {
-        const textNode = range.startContainer;
-        if (textNode.nodeType === Node.TEXT_NODE) {
-          const textBefore = textNode.textContent.slice(0, range.startOffset);
-          const openIdx = textBefore.lastIndexOf("[[");
-          const closeIdx = textBefore.lastIndexOf("]]");
-          if (openIdx !== -1 && openIdx > closeIdx) {
-            const query = textBefore.slice(openIdx + 2);
-            try {
-              const rect = range.getBoundingClientRect();
-              const wrapRect = contentWrapRef.current.getBoundingClientRect();
-              setLinkSearch({
-                query,
-                pos: { top: rect.bottom - wrapRect.top + 4, left: Math.max(0, rect.left - wrapRect.left) }
-              });
-            } catch { setLinkSearch(null); }
-          } else {
-            setLinkSearch(null);
-          }
-        } else {
-          setLinkSearch(null);
-        }
-      }
-    }
-    triggerAutoSave();
-  }
   function handleLinkSelect(note) {
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) { setLinkSearch(null); return; }
-    const range = sel.getRangeAt(0);
-    const textNode = range.startContainer;
-    if (textNode.nodeType !== Node.TEXT_NODE) { setLinkSearch(null); return; }
-    const text = textNode.textContent;
-    const cursorPos = range.startOffset;
-    const openIdx = text.lastIndexOf("[[", cursorPos - 1);
+    const editor = editorRef.current;
+    if (!editor) { setLinkSearch(null); return; }
+    const { state } = editor;
+    const { from } = state.selection;
+    const start = Math.max(0, from - 200);
+    let textBefore;
+    try { textBefore = state.doc.textBetween(start, from, null, '\ufffc'); }
+    catch { setLinkSearch(null); return; }
+    const openIdx = textBefore.lastIndexOf('[[');
     if (openIdx === -1) { setLinkSearch(null); return; }
-    const before = text.slice(0, openIdx);
-    const after = text.slice(cursorPos);
-    textNode.textContent = before + "[[" + note.title + "]]" + after;
-    const newPos = before.length + 2 + note.title.length + 2;
-    const newRange = document.createRange();
-    newRange.setStart(textNode, Math.min(newPos, textNode.textContent.length));
-    newRange.collapse(true);
-    sel.removeAllRanges();
-    sel.addRange(newRange);
+    const replaceFrom = from - (textBefore.length - openIdx);
+    editor.chain().focus()
+      .deleteRange({ from: replaceFrom, to: from })
+      .insertContent('[[' + note.title + ']]')
+      .run();
     setLinkSearch(null);
     triggerAutoSave();
   }
+
   function toggleTag(tag) {
     setActive(p=>{
       const updated = {...p, tags:p.tags.includes(tag)?p.tags.filter(t=>t!==tag):[...p.tags,tag]};
       setAllNotes(prev=>({...prev,[activeSpace]:(prev[activeSpace]||[]).map(n=>n.id===updated.id?{...updated}:n)}));
+      return updated;
+    });
+  }
+
+  function reorderNotes(dragId, dropId) {
+    if (dragId === dropId) return;
+    setAllNotes(p => {
+      const arr = [...(p[activeSpace] || [])];
+      const dragIdx = arr.findIndex(n => n.id === dragId);
+      const dropIdx = arr.findIndex(n => n.id === dropId);
+      if (dragIdx === -1 || dropIdx === -1) return p;
+      const [item] = arr.splice(dragIdx, 1);
+      arr.splice(dropIdx, 0, item);
+      return { ...p, [activeSpace]: arr };
+    });
+  }
+
+  function reorderTasks(dragId, dropId) {
+    if (dragId === dropId) return;
+    setActive(p => {
+      const arr = [...p.tasks];
+      const dragIdx = arr.findIndex(t => t.id === dragId);
+      const dropIdx = arr.findIndex(t => t.id === dropId);
+      if (dragIdx === -1 || dropIdx === -1) return p;
+      const [item] = arr.splice(dragIdx, 1);
+      arr.splice(dropIdx, 0, item);
+      const updated = { ...p, tasks: arr };
+      setAllNotes(prev => ({ ...prev, [activeSpace]: (prev[activeSpace] || []).map(n => n.id === updated.id ? { ...updated } : n) }));
       return updated;
     });
   }
@@ -308,7 +345,7 @@ export function AppProvider({ children }) {
 
   const value = {
     // state
-    lang, setLang, user, authLoading, spaces, setSpaces, activeSpace, setActiveSpace,
+    lang, setLang, theme, setTheme, user, authLoading, spaces, setSpaces, activeSpace, setActiveSpace,
     allNotes, setAllNotes, standaloneTasks, setStandaloneTasks, active, setActive,
     search, setSearch, filterTag, setFilterTag, newTask, setNewTask,
     showIntent, setShowIntent, showTask, setShowTask, showTagPick, setShowTagPick,
@@ -316,16 +353,18 @@ export function AppProvider({ children }) {
     dateFrom, setDateFrom, dateTo, setDateTo, showDate, setShowDate,
     showDrawer, setShowDrawer, showArchived, setShowArchived,
     showDeleteConfirm, setShowDeleteConfirm, syncStatus, showSaveToast,
-    contentEmpty, setContentEmpty, linkSearch, setLinkSearch, autoSaveStatus, setAutoSaveStatus,
+    linkSearch, setLinkSearch, autoSaveStatus, setAutoSaveStatus,
+    searchMode, setSearchMode, embedderStatus,
     // refs
-    titleRef, contentEditRef, contentWrapRef,
+    titleRef, editorRef,
     // derived
     t, notes, space, allTags, staleN, archivedN, filtered,
     // actions
     switchSpace, createNote, createTask, quickCapture, handleIntent, handleTaskIntent,
     openNote, saveNote, triggerAutoSave, toggleTask, toggleTaskInList, toggleStandaloneTask,
-    addTask, handleContentKeyDown, handleContentPaste, handleContentInput, handleLinkSelect,
-    toggleTag, deleteNote, archiveNote, unarchiveNote, handleLogin, handleLogout,
+    addTask, setTaskDueDate, setStandaloneTaskDueDate,
+    handleLinkSelect, toggleTag, reorderNotes, reorderTasks, deleteNote, archiveNote, unarchiveNote,
+    handleLogin, handleLogout,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
