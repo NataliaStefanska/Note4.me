@@ -81,6 +81,10 @@ const T = {
     deleteConfirmYes:"Usuń", deleteConfirmNo:"Anuluj",
     sbArchived:"Archiwum", archivedBadge:"zarchiwizowana",
     listShowArchived:"Archiwum", listHideArchived:"Aktywne",
+    linkedNotesLabel:"Powiązane notatki", backlinksLabel:"Linkowane przez",
+    linkSearchPh:"Szukaj notatki...", noBacklinks:"Brak powiązań",
+    autoSaved:"Zapisano", autoSaving:"Zapisywanie...",
+    quickCapturePh:"Szybka notatka",
   },
   en: {
     loginTagline:"Your notes. Your rules.", loginSync:"Cross-device synchronization",
@@ -119,6 +123,10 @@ const T = {
     deleteConfirmYes:"Delete", deleteConfirmNo:"Cancel",
     sbArchived:"Archive", archivedBadge:"archived",
     listShowArchived:"Archive", listHideArchived:"Active",
+    linkedNotesLabel:"Linked notes", backlinksLabel:"Linked by",
+    linkSearchPh:"Search note...", noBacklinks:"No connections",
+    autoSaved:"Saved", autoSaving:"Saving...",
+    quickCapturePh:"Quick note",
   },
 };
 
@@ -299,6 +307,47 @@ function FloatingFormatBar({ wrapRef, contentRef }) {
       <button style={btn} onMouseDown={fmt('italic')} title="Ctrl+I"><i>I</i></button>
       <button style={btn} onMouseDown={fmt('underline')} title="Ctrl+U"><u>U</u></button>
       <button style={btn} onMouseDown={fmt('strikeThrough')} title="Ctrl+Shift+S"><s>S</s></button>
+    </div>
+  );
+}
+
+// ─── Link Autocomplete ([[wiki-links]]) ──────────────────────────────────────
+function LinkAutocomplete({ notes, query, pos, onSelect, onClose, t }) {
+  const ref = useRef();
+  const filtered = notes.filter(n =>
+    n.title && n.title.toLowerCase().includes(query.toLowerCase())
+  ).slice(0, 6);
+
+  useEffect(() => {
+    function handleClick(e) {
+      if (ref.current && !ref.current.contains(e.target)) onClose();
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [onClose]);
+
+  if (!pos) return null;
+  return (
+    <div ref={ref} style={{
+      position: "absolute", top: pos.top, left: pos.left,
+      background: "#fff", border: "1px solid #E7E5E4", borderRadius: 8,
+      padding: 4, zIndex: 60, minWidth: 200, maxWidth: 300,
+      boxShadow: "0 8px 24px rgba(0,0,0,.12)",
+      maxHeight: 220, overflowY: "auto"
+    }}>
+      {filtered.length === 0 && (
+        <div style={{ fontSize: 12, color: "#A8A29E", padding: "6px 8px" }}>{t.linkSearchPh}</div>
+      )}
+      {filtered.map(n => (
+        <button key={n.id} onMouseDown={(e) => { e.preventDefault(); onSelect(n); }} style={{
+          display: "block", width: "100%", background: "transparent", border: "none",
+          padding: "7px 10px", fontSize: 13, cursor: "pointer", fontFamily: "inherit",
+          textAlign: "left", borderRadius: 5, color: "#1C1917"
+        }}>
+          <div style={{ fontWeight: 500, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{n.title || t.listNoTitle}</div>
+          {n.content && <div style={{ fontSize: 11, color: "#A8A29E", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{textPreview(n.content, 40)}</div>}
+        </button>
+      ))}
     </div>
   );
 }
@@ -508,7 +557,9 @@ function ForceGraph({ notes, spaceColor, onOpenNote }) {
     });
 
     nodes.current = [...tagNodes, ...noteNodes];
-    links.current = notes.flatMap(n => n.tags.map(tag => ({ s:n.id, t:"tag:"+tag })));
+    const tagLinks = notes.flatMap(n => n.tags.map(tag => ({ s:n.id, t:"tag:"+tag, kind:"tag" })));
+    const noteLinks = notes.flatMap(n => (n.linkedNotes||[]).filter(lid => notes.some(nn=>nn.id===lid)).map(lid => ({ s:n.id, t:lid, kind:"link" })));
+    links.current = [...tagLinks, ...noteLinks];
   }, [notes]);
 
   useEffect(() => {
@@ -527,11 +578,13 @@ function ForceGraph({ notes, spaceColor, onOpenNote }) {
           a.fx-=fx; a.fy-=fy; b.fx+=fx; b.fy+=fy;
         }
       }
-      ls.forEach(({ s, t }) => {
+      ls.forEach(({ s, t, kind }) => {
         const a=ns.find(n=>n.id===s), b=ns.find(n=>n.id===t);
         if (!a||!b) return;
         const dx=b.x-a.x, dy=b.y-a.y, dist=Math.sqrt(dx*dx+dy*dy)||1;
-        const f=(dist-130)*0.014, fx=(dx/dist)*f, fy=(dy/dist)*f;
+        const spring = kind==="link" ? 100 : 130;
+        const strength = kind==="link" ? 0.02 : 0.014;
+        const f=(dist-spring)*strength, fx=(dx/dist)*f, fy=(dy/dist)*f;
         a.fx+=fx; a.fy+=fy; b.fx-=fx; b.fy-=fy;
       });
       ns.forEach(n => {
@@ -613,9 +666,14 @@ function ForceGraph({ notes, spaceColor, onOpenNote }) {
         const a=nodes.current.find(n=>n.id===l.s), b=nodes.current.find(n=>n.id===l.t);
         if (!a||!b) return null;
         const hot=hov&&(l.s===hov||l.t===hov);
+        const isNoteLink = l.kind==="link";
         const tn=nodes.current.find(n=>n.kind==="tag"&&(n.id===l.s||n.id===l.t));
-        const lc=tn?tn.color:spaceColor;
-        return <line key={i} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={hot?lc+"EE":lc+"30"} strokeWidth={hot?2:.8} style={{ transition:"stroke .15s" }}/>;
+        const lc=isNoteLink?spaceColor:(tn?tn.color:spaceColor);
+        return <line key={i} x1={a.x} y1={a.y} x2={b.x} y2={b.y}
+          stroke={hot?lc+"EE":lc+(isNoteLink?"55":"30")}
+          strokeWidth={isNoteLink?(hot?3:1.5):(hot?2:.8)}
+          strokeDasharray={isNoteLink?undefined:"none"}
+          style={{ transition:"stroke .15s" }}/>;
       })}
       {nodes.current.filter(n=>n.kind==="tag").map(node => {
         const h=hov===node.id, cd=conn.has(node.id), dim=hov&&!h&&!cd;
@@ -688,6 +746,8 @@ export default function NoteIO() {
   const [syncStatus,  setSyncStatus]  = useState("idle");
   const [showSaveToast, setShowSaveToast] = useState(false);
   const [contentEmpty, setContentEmpty] = useState(true);
+  const [linkSearch, setLinkSearch] = useState(null); // { query, pos } or null
+  const [autoSaveStatus, setAutoSaveStatus] = useState(null); // "saving" | "saved" | null
   const isMobile = useIsMobile();
   const titleRef = useRef();
   const contentEditRef = useRef(null);
@@ -695,6 +755,8 @@ export default function NoteIO() {
   const t = T[lang] || T.pl;
   const saveTimer = useRef(null);
   const saveToastTimer = useRef(null);
+  const autoSaveTimer = useRef(null);
+  const autoSaveStatusTimer = useRef(null);
 
   // ─── Firebase Auth listener ─────────────────────────────────────────────
   useEffect(() => {
@@ -769,6 +831,16 @@ export default function NoteIO() {
   function switchSpace(id) { setActiveSpace(id); setView("list"); setActive(null); setFilterTag(null); setSearch(""); setShowDrop(false); setShowArchived(false); }
   function createNote()   { setShowIntent(true); }
   function createTask()   { setShowTask(true); }
+  function quickCapture() {
+    const n={ id:"n"+Date.now(), title:"", content:"", tags:[], linkedNotes:[], tasks:[], intent:"",
+      updatedAt:TODAY.toISOString().split("T")[0], lastOpened:TODAY.toISOString().split("T")[0] };
+    setAllNotes(p=>({...p,[activeSpace]:[n,...(p[activeSpace]||[])]}));
+    setActive({...n}); setView("editor");
+    setTimeout(()=>{
+      if(titleRef.current) titleRef.current.focus();
+      if(contentEditRef.current) { contentEditRef.current.innerHTML=''; setContentEmpty(true); }
+    },80);
+  }
 
   function handleIntent(intent) {
     const n={ id:"n"+Date.now(), title:"", content:"", tags:[], linkedNotes:[], tasks:[], intent,
@@ -798,15 +870,39 @@ export default function NoteIO() {
       }
     }, 0);
   }
-  function saveNote() {
+  function parseLinkedNotes(html) {
+    const text = html.replace(/<[^>]*>/g, '');
+    const matches = [...text.matchAll(/\[\[([^\]]+)\]\]/g)].map(m => m[1]);
+    const spaceNotes = allNotes[activeSpace] || [];
+    const ids = [];
+    matches.forEach(title => {
+      const found = spaceNotes.find(n => n.title && n.title.toLowerCase() === title.toLowerCase());
+      if (found && found.id !== (active && active.id)) ids.push(found.id);
+    });
+    return [...new Set(ids)];
+  }
+  function saveNote(silent) {
     if(!active) return;
     const content = contentEditRef.current ? contentEditRef.current.innerHTML : active.content;
-    const updated = {...active, content};
+    const linkedNotes = parseLinkedNotes(content);
+    const updated = {...active, content, linkedNotes, updatedAt:TODAY.toISOString().split("T")[0]};
     setAllNotes(p=>({...p,[activeSpace]:(p[activeSpace]||[]).map(n=>n.id===updated.id?{...updated}:n)}));
     setActive(updated);
-    setShowSaveToast(true);
-    if (saveToastTimer.current) clearTimeout(saveToastTimer.current);
-    saveToastTimer.current = setTimeout(() => setShowSaveToast(false), 1500);
+    if (!silent) {
+      setShowSaveToast(true);
+      if (saveToastTimer.current) clearTimeout(saveToastTimer.current);
+      saveToastTimer.current = setTimeout(() => setShowSaveToast(false), 1500);
+    }
+  }
+  function triggerAutoSave() {
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    setAutoSaveStatus("saving");
+    autoSaveTimer.current = setTimeout(() => {
+      saveNote(true);
+      setAutoSaveStatus("saved");
+      if (autoSaveStatusTimer.current) clearTimeout(autoSaveStatusTimer.current);
+      autoSaveStatusTimer.current = setTimeout(() => setAutoSaveStatus(null), 2000);
+    }, 800);
   }
   function toggleTask(id)  {
     setActive(p=>{
@@ -835,6 +931,58 @@ export default function NoteIO() {
   }
   function handleContentInput() {
     if (contentEditRef.current) setContentEmpty(!contentEditRef.current.textContent.trim());
+    // Detect [[ for wiki-link autocomplete
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && contentEditRef.current) {
+      const range = sel.getRangeAt(0);
+      if (contentEditRef.current.contains(range.startContainer)) {
+        const textNode = range.startContainer;
+        if (textNode.nodeType === Node.TEXT_NODE) {
+          const textBefore = textNode.textContent.slice(0, range.startOffset);
+          const openIdx = textBefore.lastIndexOf("[[");
+          const closeIdx = textBefore.lastIndexOf("]]");
+          if (openIdx !== -1 && openIdx > closeIdx) {
+            const query = textBefore.slice(openIdx + 2);
+            try {
+              const rect = range.getBoundingClientRect();
+              const wrapRect = contentWrapRef.current.getBoundingClientRect();
+              setLinkSearch({
+                query,
+                pos: { top: rect.bottom - wrapRect.top + 4, left: Math.max(0, rect.left - wrapRect.left) }
+              });
+            } catch { setLinkSearch(null); }
+          } else {
+            setLinkSearch(null);
+          }
+        } else {
+          setLinkSearch(null);
+        }
+      }
+    }
+    triggerAutoSave();
+  }
+  function handleLinkSelect(note) {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) { setLinkSearch(null); return; }
+    const range = sel.getRangeAt(0);
+    const textNode = range.startContainer;
+    if (textNode.nodeType !== Node.TEXT_NODE) { setLinkSearch(null); return; }
+    const text = textNode.textContent;
+    const cursorPos = range.startOffset;
+    const openIdx = text.lastIndexOf("[[", cursorPos - 1);
+    if (openIdx === -1) { setLinkSearch(null); return; }
+    const before = text.slice(0, openIdx);
+    const after = text.slice(cursorPos);
+    textNode.textContent = before + "[[" + note.title + "]]" + after;
+    // Position cursor after the inserted link
+    const newPos = before.length + 2 + note.title.length + 2;
+    const newRange = document.createRange();
+    newRange.setStart(textNode, Math.min(newPos, textNode.textContent.length));
+    newRange.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(newRange);
+    setLinkSearch(null);
+    triggerAutoSave();
   }
   function toggleTag(tag)  {
     setActive(p=>{
@@ -1042,7 +1190,7 @@ export default function NoteIO() {
                 </button>
                 <button style={{ ...s.ctrlBtn, ...(sortOrder==="desc"?{color:space.color}:{}) }} onClick={()=>setSortOrder(v=>v==="desc"?"asc":"desc")}>{sortOrder==="desc"?"↓":"↑"}</button>
                 <button style={{ ...s.ctrlBtn, ...(showDate||dateFrom||dateTo?{color:space.color,background:space.color+"15"}:{}) }} onClick={()=>setShowDate(v=>!v)}>📅</button>
-                {!isMobile && <button style={{ ...s.ctrlBtn, background:space.color, color:"#fff", border:"none" }} onClick={createNote}>{t.listNew}</button>}
+                {!isMobile && <button style={{ ...s.ctrlBtn, background:space.color, color:"#fff", border:"none" }} onClick={quickCapture}>{t.listNew}</button>}
               </div>
               {showArchived && (
                 <div style={{ display:"flex", alignItems:"center", gap:8 }}>
@@ -1106,7 +1254,7 @@ export default function NoteIO() {
             {daysSince(active.lastOpened)>=30 && !active.archived && (
               <div style={s.staleBar}>
                 ⏳ {daysSince(active.lastOpened)} {t.edStale}
-                <button style={s.staleBtn} onClick={()=>{ saveNote(); setView("list"); }}>{t.edKeep}</button>
+                <button style={s.staleBtn} onClick={()=>{ saveNote(true); setView("list"); }}>{t.edKeep}</button>
                 <button style={{ ...s.staleBtn, color:"#EF4444" }} onClick={()=>setShowDeleteConfirm(active.id)}>{t.edDelete}</button>
               </div>
             )}
@@ -1118,20 +1266,25 @@ export default function NoteIO() {
               </div>
             )}
             <div style={{ display:"flex", alignItems:"center", gap:10, padding:"12px 20px", borderBottom:"1px solid #E7E5E4" }}>
-              <button style={s.backBtn} onClick={()=>{ saveNote(); setView("list"); }}>{t.edBack}</button>
+              <button style={s.backBtn} onClick={()=>{ saveNote(true); setView("list"); setLinkSearch(null); setAutoSaveStatus(null); }}>{t.edBack}</button>
               {active.intent && !isMobile && <div style={{ flex:1, fontSize:12, color:"#A8A29E", fontStyle:"italic", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>→ {active.intent}</div>}
-              <div style={{ display:"flex", gap:6, marginLeft:"auto" }}>
+              <div style={{ display:"flex", gap:6, marginLeft:"auto", alignItems:"center" }}>
+                {autoSaveStatus && (
+                  <span style={{ fontSize:12, color:autoSaveStatus==="saved"?"#10B981":"#A8A29E", display:"flex", alignItems:"center", gap:4, transition:"opacity .3s" }}>
+                    {autoSaveStatus==="saved" && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>}
+                    {autoSaveStatus==="saving"?t.autoSaving:t.autoSaved}
+                  </span>
+                )}
                 {!active.archived && <button style={{ ...s.ctrlBtn, color:"#78716C" }} onClick={()=>archiveNote(active.id)} title={t.archiveBtn}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
                 </button>}
                 <button style={{ ...s.ctrlBtn, color:"#EF4444", borderColor:"#FECACA" }} onClick={()=>setShowDeleteConfirm(active.id)} title={t.deleteBtn}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
                 </button>
-                <button style={{ ...s.ctrlBtn, background:space.color, color:"#fff", border:"none" }} onClick={saveNote}>{t.edSave}</button>
               </div>
             </div>
             <div style={{ flex:1, padding:"20px", display:"flex", flexDirection:"column", gap:12, overflowY:"auto" }}>
-              <input ref={titleRef} style={s.titleInp} value={active.title} placeholder={t.edTitlePh} onChange={e=>setActive(p=>({...p,title:e.target.value}))}/>
+              <input ref={titleRef} style={s.titleInp} value={active.title} placeholder={t.edTitlePh} onChange={e=>{setActive(p=>({...p,title:e.target.value}));triggerAutoSave();}}/>
               <div ref={contentWrapRef} style={{ position:"relative", flex:1, minHeight:isMobile?160:220 }}>
                 <FloatingFormatBar wrapRef={contentWrapRef} contentRef={contentEditRef}/>
                 {contentEmpty && <div style={{ position:"absolute", top:0, left:0, color:"#A8A29E", fontSize:14, lineHeight:1.7, pointerEvents:"none", userSelect:"none" }}>{t.edContentPh}</div>}
@@ -1139,8 +1292,22 @@ export default function NoteIO() {
                   contentEditable suppressContentEditableWarning
                   style={{ ...s.contentArea, minHeight:isMobile?160:220, outline:"none" }}
                   onInput={handleContentInput}
-                  onKeyDown={handleContentKeyDown}
+                  onKeyDown={(e) => {
+                    if (linkSearch) {
+                      if (e.key === "Escape") { setLinkSearch(null); e.preventDefault(); return; }
+                    }
+                    handleContentKeyDown(e);
+                  }}
                   onPaste={handleContentPaste}/>
+                {linkSearch && (
+                  <LinkAutocomplete
+                    notes={(allNotes[activeSpace]||[]).filter(n=>n.id!==active.id && !n.archived)}
+                    query={linkSearch.query}
+                    pos={linkSearch.pos}
+                    onSelect={handleLinkSelect}
+                    onClose={()=>setLinkSearch(null)}
+                    t={t}/>
+                )}
               </div>
             </div>
             <div style={{ display:"flex", gap:isMobile?16:28, padding:isMobile?"12px 16px":"14px 40px", borderTop:"1px solid #E7E5E4", flexWrap:"wrap" }}>
@@ -1174,6 +1341,49 @@ export default function NoteIO() {
                 </div>
               </div>
             </div>
+            {/* Linked notes + Backlinks */}
+            {(() => {
+              const spaceNotes = allNotes[activeSpace] || [];
+              const linked = (active.linkedNotes||[]).map(id => spaceNotes.find(n=>n.id===id)).filter(Boolean);
+              const backlinks = spaceNotes.filter(n => n.id!==active.id && (n.linkedNotes||[]).includes(active.id));
+              if (linked.length === 0 && backlinks.length === 0) return null;
+              return (
+                <div style={{ display:"flex", gap:isMobile?16:28, padding:isMobile?"8px 16px":"8px 40px", borderTop:"1px solid #F5F5F4", flexWrap:"wrap" }}>
+                  {linked.length > 0 && (
+                    <div style={s.toolSec}>
+                      <div style={s.toolLbl}>{t.linkedNotesLabel}</div>
+                      <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                        {linked.map(n => (
+                          <button key={n.id} onClick={()=>openNote(n)} style={{
+                            fontSize:12, padding:"4px 10px", borderRadius:6,
+                            background:space.color+"12", color:space.color, border:"1px solid "+space.color+"33",
+                            cursor:"pointer", fontFamily:"inherit"
+                          }}>
+                            {n.title || t.listNoTitle}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {backlinks.length > 0 && (
+                    <div style={s.toolSec}>
+                      <div style={s.toolLbl}>{t.backlinksLabel}</div>
+                      <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                        {backlinks.map(n => (
+                          <button key={n.id} onClick={()=>openNote(n)} style={{
+                            fontSize:12, padding:"4px 10px", borderRadius:6,
+                            background:"#F5F5F4", color:"#57534E", border:"1px solid #E7E5E4",
+                            cursor:"pointer", fontFamily:"inherit"
+                          }}>
+                            {n.title || t.listNoTitle}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         )}
 
@@ -1270,7 +1480,7 @@ export default function NoteIO() {
               <span style={{ fontSize:10 }}>{item.label}</span>
             </button>
           ))}
-          <button style={{ ...s.fab, background:space.color }} onClick={()=>view==="tasks"?createTask():createNote()}>
+          <button style={{ ...s.fab, background:space.color }} onClick={()=>view==="tasks"?createTask():quickCapture()}>
             <span style={{ fontSize:26, lineHeight:1, color:"#fff" }}>+</span>
           </button>
           {NAV.slice(2,4).map(item=>(
