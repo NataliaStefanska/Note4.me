@@ -19,6 +19,7 @@ export default function NotesList() {
     sortOrder, setSortOrder, showDate, setShowDate, dateFrom, setDateFrom,
     dateTo, setDateTo, archivedN, quickCapture, openNote, archiveNote,
     unarchiveNote, setShowDeleteConfirm, reorderNotes,
+    searchMode, setSearchMode, embedderStatus,
   } = useApp();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
@@ -66,8 +67,22 @@ export default function NotesList() {
             <span style={s.badge}>{filtered.length}/{notes.length}</span>
           </div>
         )}
-        <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-          <input style={s.searchBox} placeholder={t.listSearch} value={search} onChange={e=>setSearch(e.target.value)}/>
+        <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
+          <div style={{ display:"flex", flex:1, minWidth:140, gap:4, alignItems:"center" }}>
+            <input style={{ ...s.searchBox, flex:1 }} placeholder={t.listSearch} value={search} onChange={e=>setSearch(e.target.value)}/>
+            <div style={{ display:"flex", borderRadius:6, overflow:"hidden", border:"1px solid var(--border)", flexShrink:0 }}>
+              <button onClick={()=>setSearchMode("text")}
+                style={{ fontSize:10, padding:"4px 8px", border:"none", cursor:"pointer", fontFamily:"inherit", fontWeight:searchMode==="text"?600:400,
+                  background:searchMode==="text"?space.color:  "var(--bg-input)", color:searchMode==="text"?"#fff":"var(--text-secondary)" }}>
+                {t.searchText}
+              </button>
+              <button onClick={()=>setSearchMode("vector")}
+                style={{ fontSize:10, padding:"4px 8px", border:"none", borderLeft:"1px solid var(--border)", cursor:"pointer", fontFamily:"inherit", fontWeight:searchMode==="vector"?600:400,
+                  background:searchMode==="vector"?space.color:"var(--bg-input)", color:searchMode==="vector"?"#fff":"var(--text-secondary)" }}>
+                {t.searchSemantic}
+              </button>
+            </div>
+          </div>
           <button style={{ ...s.ctrlBtn, ...(showArchived?{background:space.color+"18",color:space.color,borderColor:space.color+"44"}:{}) }}
             onClick={()=>setShowArchived(v=>!v)}>
             {showArchived ? "\u{1F4E6}" : "\u{1F4CB}"}
@@ -76,6 +91,12 @@ export default function NotesList() {
           <button style={{ ...s.ctrlBtn, ...(showDate||dateFrom||dateTo?{color:space.color,background:space.color+"15"}:{}) }} onClick={()=>setShowDate(v=>!v)}>{"\u{1F4C5}"}</button>
           {!isMobile && <button style={{ ...s.ctrlBtn, background:space.color, color:"#fff", border:"none" }} onClick={handleQuickCapture}>{t.listNew}</button>}
         </div>
+        {searchMode === "vector" && embedderStatus !== "ready" && (
+          <div style={{ fontSize:11, color:embedderStatus==="error"?"#EF4444":"#A8A29E", display:"flex", alignItems:"center", gap:6 }}>
+            {embedderStatus === "loading" && <span style={{ display:"inline-block", width:12, height:12, border:"2px solid "+space.color, borderTop:"2px solid transparent", borderRadius:"50%", animation:"spin 1s linear infinite" }}/>}
+            {embedderStatus === "loading" ? t.searchLoading : embedderStatus === "error" ? "Error loading model" : ""}
+          </div>
+        )}
         {showArchived && (
           <div style={{ display:"flex", alignItems:"center", gap:8 }}>
             <span style={{ fontSize:12, color:"#7C3AED", fontWeight:500 }}>{"\u{1F4E6}"} {t.listShowArchived}</span>

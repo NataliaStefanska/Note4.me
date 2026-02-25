@@ -3,6 +3,7 @@ import { loginWithGoogle, logout, onAuth, saveUserData, loadUserData } from "../
 import { TODAY, INITIAL_SPACES, INITIAL_NOTES, daysSince } from "../constants/data";
 import { T } from "../i18n/translations";
 import { textPreview } from "../utils/helpers";
+import { initEmbedder, indexNotes, vectorSearch as vsearch, isEmbedderReady } from "../utils/vectorSearch";
 
 const AppContext = createContext(null);
 
@@ -40,6 +41,9 @@ export function AppProvider({ children }) {
   const [showSaveToast, setShowSaveToast] = useState(false);
   const [linkSearch, setLinkSearch] = useState(null);
   const [autoSaveStatus, setAutoSaveStatus] = useState(null);
+  const [searchMode, setSearchMode] = useState("text"); // "text" | "vector"
+  const [embedderStatus, setEmbedderStatus] = useState("idle"); // "idle" | "loading" | "ready" | "error"
+  const [semanticResults, setSemanticResults] = useState(null);
 
   const titleRef = useRef();
   const editorRef = useRef(null);
@@ -113,7 +117,36 @@ export function AppProvider({ children }) {
   const staleN = notes.filter(n=>!n.archived&&daysSince(n.lastOpened)>=30).length;
   const archivedN = notes.filter(n=>n.archived).length;
 
-  const filtered = notes
+  // Vector search: init embedder on mode switch
+  useEffect(() => {
+    if (searchMode !== "vector") return;
+    if (isEmbedderReady()) { setEmbedderStatus("ready"); return; }
+    setEmbedderStatus("loading");
+    initEmbedder().then(() => setEmbedderStatus("ready")).catch(() => setEmbedderStatus("error"));
+  }, [searchMode]);
+
+  // Vector search: index notes when they change and embedder is ready
+  const vectorSearchTimer = useRef(null);
+  useEffect(() => {
+    if (searchMode !== "vector" || embedderStatus !== "ready") return;
+    indexNotes(notes);
+  }, [notes, searchMode, embedderStatus]);
+
+  // Vector search: debounced semantic query
+  useEffect(() => {
+    if (searchMode !== "vector" || embedderStatus !== "ready" || !search.trim()) {
+      setSemanticResults(null);
+      return;
+    }
+    if (vectorSearchTimer.current) clearTimeout(vectorSearchTimer.current);
+    vectorSearchTimer.current = setTimeout(async () => {
+      const results = await vsearch(search, notes);
+      setSemanticResults(results);
+    }, 400);
+    return () => { if (vectorSearchTimer.current) clearTimeout(vectorSearchTimer.current); };
+  }, [search, notes, searchMode, embedderStatus]);
+
+  const textFiltered = notes
     .filter(n => {
       const ma = showArchived ? !!n.archived : !n.archived;
       const mt = filterTag ? n.tags.includes(filterTag) : true;
@@ -130,6 +163,16 @@ export function AppProvider({ children }) {
       return ma&&mt&&ms&&mf&&mtd;
     })
     .sort((a,b)=>sortOrder==="desc"?b.updatedAt.localeCompare(a.updatedAt):a.updatedAt.localeCompare(b.updatedAt));
+
+  const filtered = (searchMode === "vector" && search.trim() && semanticResults)
+    ? semanticResults.filter(n => {
+        const ma = showArchived ? !!n.archived : !n.archived;
+        const mt = filterTag ? n.tags.includes(filterTag) : true;
+        const mf = dateFrom ? n.updatedAt>=dateFrom : true;
+        const mtd= dateTo   ? n.updatedAt<=dateTo   : true;
+        return ma&&mt&&mf&&mtd;
+      })
+    : textFiltered;
 
   function switchSpace(id) { setActiveSpace(id); setActive(null); setFilterTag(null); setSearch(""); setShowDrop(false); setShowArchived(false); }
   function createNote()   { setShowIntent(true); }
@@ -311,6 +354,7 @@ export function AppProvider({ children }) {
     showDrawer, setShowDrawer, showArchived, setShowArchived,
     showDeleteConfirm, setShowDeleteConfirm, syncStatus, showSaveToast,
     linkSearch, setLinkSearch, autoSaveStatus, setAutoSaveStatus,
+    searchMode, setSearchMode, embedderStatus,
     // refs
     titleRef, editorRef,
     // derived

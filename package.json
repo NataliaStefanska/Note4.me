@@ -12,6 +12,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@huggingface/transformers": "^3.8.1",
     "@tiptap/extension-placeholder": "^3.20.0",
     "@tiptap/extension-underline": "^3.20.0",
     "@tiptap/pm": "^3.20.0",

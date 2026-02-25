@@ -43,6 +43,7 @@ export const T = {
     edDueDate:"Termin",
     setExport:"Eksport / Import", exportMd:"Eksport Markdown", exportJson:"Eksport JSON", importJson:"Import JSON",
     setTheme:"Motyw", setLight:"Jasny", setDark:"Ciemny",
+    searchText:"Tekst", searchSemantic:"Semantyczne", searchLoading:"Model AI si\u0119 \u0142aduje...", searchReady:"Wyszukiwanie semantyczne aktywne",
   },
   en: {
     loginTagline:"Your notes. Your rules.", loginSync:"Cross-device synchronization",
@@ -88,5 +89,6 @@ export const T = {
     edDueDate:"Due date",
     setExport:"Export / Import", exportMd:"Export Markdown", exportJson:"Export JSON", importJson:"Import JSON",
     setTheme:"Theme", setLight:"Light", setDark:"Dark",
+    searchText:"Text", searchSemantic:"Semantic", searchLoading:"AI model loading...", searchReady:"Semantic search active",
   },
 };
