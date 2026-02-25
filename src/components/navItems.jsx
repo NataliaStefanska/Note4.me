@@ -1,0 +1,8 @@
+export function NAV_ITEMS(t) {
+  return [
+    { id:"list",  path:"/", label:t.navNotes, icon:<svg width="20" height="20" viewBox="0 0 13 13" fill="none"><rect x="1" y="1.5" width="11" height="1.4" rx=".7" fill="currentColor"/><rect x="1" y="5.5" width="11" height="1.4" rx=".7" fill="currentColor"/><rect x="1" y="9.5" width="7" height="1.4" rx=".7" fill="currentColor"/></svg> },
+    { id:"tasks", path:"/tasks", label:t.navTasks, icon:<svg width="20" height="20" viewBox="0 0 13 13" fill="none"><rect x="1" y="1" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="1.2"/><path d="M3.5 6.5l2 2 4-4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg> },
+    { id:"graph", path:"/graph", label:t.navGraph, icon:<svg width="20" height="20" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="1.8" stroke="currentColor" strokeWidth="1.3"/><circle cx="2" cy="2.5" r="1.3" stroke="currentColor" strokeWidth="1.1"/><circle cx="11" cy="2.5" r="1.3" stroke="currentColor" strokeWidth="1.1"/><circle cx="6.5" cy="11.5" r="1.3" stroke="currentColor" strokeWidth="1.1"/><line x1="3" y1="3.3" x2="5.5" y2="5.5" stroke="currentColor" strokeWidth=".9"/><line x1="10" y1="3.3" x2="7.5" y2="5.5" stroke="currentColor" strokeWidth=".9"/><line x1="6.5" y1="8.3" x2="6.5" y2="10.2" stroke="currentColor" strokeWidth=".9"/></svg> },
+    { id:"settings", path:"/settings", label:t.navSettings, icon:<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.3"/><path d="M10 1.5v2M10 16.5v2M1.5 10h2M16.5 10h2M4.2 4.2l1.4 1.4M14.4 14.4l1.4 1.4M4.2 15.8l1.4-1.4M14.4 5.6l1.4-1.4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg> },
+  ];
+}
