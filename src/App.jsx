@@ -122,6 +122,17 @@ const T = {
   },
 };
 
+// ─── Helpers ────────────────────────────────────────────────────────────────
+function textPreview(html, max) {
+  const txt = html.replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ');
+  return txt.length > max ? txt.slice(0, max) + '…' : txt;
+}
+function contentToHtml(content) {
+  if (!content) return '';
+  if (content.includes('<')) return content;
+  return content.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+}
+
 // ─── Hook ──────────────────────────────────────────────────────────────────
 function useIsMobile() {
   const [v, set] = useState(() => window.innerWidth < 640);
@@ -247,6 +258,47 @@ function TagPicker({ active, onSelect, onClose, t }) {
       {list.map(tg => <button key={tg} style={s.pickerItem} onClick={() => onSelect(tg)}>{tg}</button>)}
       {canCreate && <button style={{ ...s.pickerItem, color:"#6366F1" }} onClick={() => onSelect(q.trim())}>{t.tagCreate} „{q.trim()}"</button>}
       {!list.length && !canCreate && <div style={{ fontSize:11, color:"#A8A29E", padding:"4px 8px" }}>{t.tagNone}</div>}
+    </div>
+  );
+}
+
+// ─── Floating Format Bar ────────────────────────────────────────────────────
+function FloatingFormatBar({ wrapRef, contentRef }) {
+  const [pos, setPos] = useState(null);
+  useEffect(() => {
+    function check() {
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed || !contentRef.current || !contentRef.current.contains(sel.anchorNode)) {
+        setPos(null); return;
+      }
+      try {
+        const range = sel.getRangeAt(0);
+        const rect = range.getBoundingClientRect();
+        const wRect = wrapRef.current.getBoundingClientRect();
+        if (rect.width < 2) { setPos(null); return; }
+        setPos({
+          top: rect.top - wRect.top - 44,
+          left: Math.max(70, Math.min(rect.left - wRect.left + rect.width / 2, wRect.width - 70))
+        });
+      } catch { setPos(null); }
+    }
+    document.addEventListener('selectionchange', check);
+    return () => document.removeEventListener('selectionchange', check);
+  }, [wrapRef, contentRef]);
+  if (!pos) return null;
+  function fmt(cmd) { return (e) => { e.preventDefault(); document.execCommand(cmd, false, null); }; }
+  const bar = { position:"absolute", top:pos.top, left:pos.left, transform:"translateX(-50%)",
+    display:"flex", gap:2, background:"#1C1917", borderRadius:8, padding:"4px 6px",
+    boxShadow:"0 4px 16px rgba(0,0,0,.25)", zIndex:60 };
+  const btn = { background:"transparent", border:"none", color:"#E7E5E4", cursor:"pointer",
+    width:30, height:30, borderRadius:5, display:"flex", alignItems:"center",
+    justifyContent:"center", fontSize:13, fontFamily:"inherit" };
+  return (
+    <div style={bar}>
+      <button style={btn} onMouseDown={fmt('bold')} title="Ctrl+B"><b>B</b></button>
+      <button style={btn} onMouseDown={fmt('italic')} title="Ctrl+I"><i>I</i></button>
+      <button style={btn} onMouseDown={fmt('underline')} title="Ctrl+U"><u>U</u></button>
+      <button style={btn} onMouseDown={fmt('strikeThrough')} title="Ctrl+Shift+S"><s>S</s></button>
     </div>
   );
 }
@@ -634,10 +686,15 @@ export default function NoteIO() {
   const [showArchived,setShowArchived]= useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
   const [syncStatus,  setSyncStatus]  = useState("idle");
+  const [showSaveToast, setShowSaveToast] = useState(false);
+  const [contentEmpty, setContentEmpty] = useState(true);
   const isMobile = useIsMobile();
   const titleRef = useRef();
+  const contentEditRef = useRef(null);
+  const contentWrapRef = useRef(null);
   const t = T[lang] || T.pl;
   const saveTimer = useRef(null);
+  const saveToastTimer = useRef(null);
 
   // ─── Firebase Auth listener ─────────────────────────────────────────────
   useEffect(() => {
@@ -694,7 +751,7 @@ export default function NoteIO() {
   const notes  = allNotes[activeSpace] || [];
   const space  = spaces.find(sp => sp.id===activeSpace) || spaces[0];
   const allTags= [...new Set([...notes.flatMap(n=>n.tags), ...(active ? active.tags : [])])];
-  const staleN = notes.filter(n=>daysSince(n.lastOpened)>=30).length;
+  const staleN = notes.filter(n=>!n.archived&&daysSince(n.lastOpened)>=30).length;
 
   const archivedN = notes.filter(n=>n.archived).length;
 
@@ -702,14 +759,14 @@ export default function NoteIO() {
     .filter(n => {
       const ma = showArchived ? !!n.archived : !n.archived;
       const mt = filterTag ? n.tags.includes(filterTag) : true;
-      const ms = search ? n.title.toLowerCase().includes(search.toLowerCase())||n.content.toLowerCase().includes(search.toLowerCase()) : true;
+      const ms = search ? n.title.toLowerCase().includes(search.toLowerCase())||textPreview(n.content,99999).toLowerCase().includes(search.toLowerCase()) : true;
       const mf = dateFrom ? n.updatedAt>=dateFrom : true;
       const mtd= dateTo   ? n.updatedAt<=dateTo   : true;
       return ma&&mt&&ms&&mf&&mtd;
     })
     .sort((a,b)=>sortOrder==="desc"?b.updatedAt.localeCompare(a.updatedAt):a.updatedAt.localeCompare(b.updatedAt));
 
-  function switchSpace(id) { setActiveSpace(id); setView("list"); setActive(null); setFilterTag(null); setSearch(""); setShowDrop(false); }
+  function switchSpace(id) { setActiveSpace(id); setView("list"); setActive(null); setFilterTag(null); setSearch(""); setShowDrop(false); setShowArchived(false); }
   function createNote()   { setShowIntent(true); }
   function createTask()   { setShowTask(true); }
 
@@ -718,7 +775,10 @@ export default function NoteIO() {
       updatedAt:TODAY.toISOString().split("T")[0], lastOpened:TODAY.toISOString().split("T")[0] };
     setAllNotes(p=>({...p,[activeSpace]:[n,...(p[activeSpace]||[])]}));
     setActive({...n}); setShowIntent(false); setView("editor");
-    setTimeout(()=>{ if(titleRef.current) titleRef.current.focus(); },80);
+    setTimeout(()=>{
+      if(titleRef.current) titleRef.current.focus();
+      if(contentEditRef.current) { contentEditRef.current.innerHTML=''; setContentEmpty(true); }
+    },80);
   }
 
   function handleTaskIntent(why, what) {
@@ -728,8 +788,26 @@ export default function NoteIO() {
     setShowTask(false);
   }
 
-  function openNote(note)  { setActive({...note, lastOpened:TODAY.toISOString().split("T")[0]}); setView("editor"); }
-  function saveNote()      { if(!active) return; setAllNotes(p=>({...p,[activeSpace]:(p[activeSpace]||[]).map(n=>n.id===active.id?{...active}:n)})); }
+  function openNote(note) {
+    setActive({...note, lastOpened:TODAY.toISOString().split("T")[0]});
+    setView("editor");
+    setTimeout(() => {
+      if (contentEditRef.current) {
+        contentEditRef.current.innerHTML = contentToHtml(note.content);
+        setContentEmpty(!contentEditRef.current.textContent.trim());
+      }
+    }, 0);
+  }
+  function saveNote() {
+    if(!active) return;
+    const content = contentEditRef.current ? contentEditRef.current.innerHTML : active.content;
+    const updated = {...active, content};
+    setAllNotes(p=>({...p,[activeSpace]:(p[activeSpace]||[]).map(n=>n.id===updated.id?{...updated}:n)}));
+    setActive(updated);
+    setShowSaveToast(true);
+    if (saveToastTimer.current) clearTimeout(saveToastTimer.current);
+    saveToastTimer.current = setTimeout(() => setShowSaveToast(false), 1500);
+  }
   function toggleTask(id)  {
     setActive(p=>{
       const updated = {...p, tasks:p.tasks.map(t=>t.id===id?{...t,done:!t.done}:t)};
@@ -744,6 +822,20 @@ export default function NoteIO() {
     setStandaloneTasks(prev=>({...prev,[activeSpace]:(prev[activeSpace]||[]).map(t=>t.id===taskId?{...t,done:!t.done}:t)}));
   }
   function addTask()       { if(!newTask.trim()) return; setActive(p=>({...p,tasks:[...p.tasks,{id:"t"+Date.now(),text:newTask,done:false}]})); setNewTask(""); }
+  function handleContentKeyDown(e) {
+    if ((e.ctrlKey||e.metaKey)&&e.key==='b') { e.preventDefault(); document.execCommand('bold'); }
+    if ((e.ctrlKey||e.metaKey)&&e.key==='i') { e.preventDefault(); document.execCommand('italic'); }
+    if ((e.ctrlKey||e.metaKey)&&e.key==='u') { e.preventDefault(); document.execCommand('underline'); }
+    if ((e.ctrlKey||e.metaKey)&&e.shiftKey&&(e.key==='s'||e.key==='S')) { e.preventDefault(); document.execCommand('strikeThrough'); }
+  }
+  function handleContentPaste(e) {
+    e.preventDefault();
+    const text = e.clipboardData.getData('text/plain');
+    document.execCommand('insertText', false, text);
+  }
+  function handleContentInput() {
+    if (contentEditRef.current) setContentEmpty(!contentEditRef.current.textContent.trim());
+  }
   function toggleTag(tag)  {
     setActive(p=>{
       const updated = {...p, tags:p.tags.includes(tag)?p.tags.filter(t=>t!==tag):[...p.tags,tag]};
@@ -843,7 +935,7 @@ export default function NoteIO() {
         </div>
         <div style={{ flex:1 }}/>
         {archivedN>0 && (
-          <button style={{ ...s.staleHint, background:showArchived?"#EDE9FE":"#F5F3FF", color:"#5B21B6", border:"none", cursor:"pointer", fontFamily:"inherit", width:"100%", textAlign:"left", marginBottom:2 }}
+          <button style={{ ...s.tagPill, color:showArchived?"#E7E5E4":"#78716C", background:showArchived?"#292524":"transparent" }}
             onClick={()=>{ setShowArchived(v=>!v); setView("list"); if(onClose)onClose(); }}>
             📦 {archivedN} {t.sbArchived}
           </button>
@@ -872,6 +964,14 @@ export default function NoteIO() {
               <button style={{ ...m.ok, background:"#EF4444" }} onClick={()=>deleteNote(showDeleteConfirm)}>{t.deleteConfirmYes}</button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Save toast */}
+      {showSaveToast && (
+        <div style={s.saveToast}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+          {t.edSave === "Zapisz" ? "Zapisano" : "Saved"}
         </div>
       )}
 
@@ -968,7 +1068,7 @@ export default function NoteIO() {
                     <div style={{ flex:1, minWidth:0, display:"flex", flexDirection:"column", gap:3, cursor:"pointer" }} onClick={()=>openNote(note)}>
                       <div style={{ fontSize:14, fontWeight:600, color:"#1C1917" }}>{note.title||t.listNoTitle}</div>
                       {note.intent && <div style={{ fontSize:11, color:"#A8A29E", fontStyle:"italic" }}>→ {note.intent}</div>}
-                      <div style={{ fontSize:12, color:"#78716C", overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{note.content.slice(0,72)}{note.content.length>72?"…":""}</div>
+                      <div style={{ fontSize:12, color:"#78716C", overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{textPreview(note.content, 72)}</div>
                     </div>
                     <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4, flexShrink:0 }}>
                       <div style={{ display:"flex", gap:4, alignItems:"center" }}>
@@ -1032,9 +1132,16 @@ export default function NoteIO() {
             </div>
             <div style={{ flex:1, padding:"20px", display:"flex", flexDirection:"column", gap:12, overflowY:"auto" }}>
               <input ref={titleRef} style={s.titleInp} value={active.title} placeholder={t.edTitlePh} onChange={e=>setActive(p=>({...p,title:e.target.value}))}/>
-              <textarea style={{ ...s.contentArea, minHeight:isMobile?160:220 }} value={active.content}
-                placeholder={t.edContentPh}
-                onChange={e=>setActive(p=>({...p,content:e.target.value}))}/>
+              <div ref={contentWrapRef} style={{ position:"relative", flex:1, minHeight:isMobile?160:220 }}>
+                <FloatingFormatBar wrapRef={contentWrapRef} contentRef={contentEditRef}/>
+                {contentEmpty && <div style={{ position:"absolute", top:0, left:0, color:"#A8A29E", fontSize:14, lineHeight:1.7, pointerEvents:"none", userSelect:"none" }}>{t.edContentPh}</div>}
+                <div ref={contentEditRef}
+                  contentEditable suppressContentEditableWarning
+                  style={{ ...s.contentArea, minHeight:isMobile?160:220, outline:"none" }}
+                  onInput={handleContentInput}
+                  onKeyDown={handleContentKeyDown}
+                  onPaste={handleContentPaste}/>
+              </div>
             </div>
             <div style={{ display:"flex", gap:isMobile?16:28, padding:isMobile?"12px 16px":"14px 40px", borderTop:"1px solid #E7E5E4", flexWrap:"wrap" }}>
               <div style={s.toolSec}>
@@ -1083,7 +1190,7 @@ export default function NoteIO() {
 
         {/* TASKS */}
         {view==="tasks" && (
-          <TasksView notes={notes} color={space.color} allTags={allTags} onOpenNote={openNote} onCreate={createTask} onToggleTask={toggleTaskInList} standaloneTasks={standaloneTasks[activeSpace]||[]} onToggleStandaloneTask={toggleStandaloneTask} t={t}/>
+          <TasksView notes={notes.filter(n=>!n.archived)} color={space.color} allTags={allTags} onOpenNote={openNote} onCreate={createTask} onToggleTask={toggleTaskInList} standaloneTasks={standaloneTasks[activeSpace]||[]} onToggleStandaloneTask={toggleStandaloneTask} t={t}/>
         )}
 
         {/* SETTINGS */}
@@ -1251,6 +1358,7 @@ const s = {
   fab:     { width:56, height:56, borderRadius:"50%", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, boxShadow:"0 4px 20px rgba(0,0,0,.4)", marginBottom:22 },
   drawerOverlay:{ position:"fixed", inset:0, background:"rgba(0,0,0,.6)", zIndex:400, backdropFilter:"blur(2px)" },
   drawer:  { position:"absolute", top:0, left:0, bottom:0, width:"78vw", maxWidth:300, background:"#1C1917", display:"flex", flexDirection:"column", padding:"16px 14px", gap:4, overflowY:"auto" },
+  saveToast:{ position:"fixed", top:20, left:"50%", transform:"translateX(-50%)", background:"#fff", border:"1px solid #D1FAE5", borderRadius:8, padding:"8px 18px", fontSize:13, fontWeight:500, color:"#065F46", display:"flex", alignItems:"center", gap:8, boxShadow:"0 4px 16px rgba(0,0,0,.1)", zIndex:600, animation:"fadeInOut 1.5s ease" },
   iconBtn: { background:"transparent", border:"none", color:"#57534E", fontSize:16, cursor:"pointer", padding:4 },
   smRow:   { display:"flex", alignItems:"center", gap:8, padding:"8px 10px", borderRadius:8, background:"#FAFAF9", border:"1px solid #F5F5F4" },
   smEditBtn:{ background:"transparent", border:"1px solid #E7E5E4", borderRadius:6, padding:"4px 10px", fontSize:12, cursor:"pointer", color:"#78716C", fontFamily:"inherit" },
