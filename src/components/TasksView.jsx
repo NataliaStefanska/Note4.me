@@ -106,7 +106,7 @@ export default function TasksView({ notes, color, allTags, onOpenNote, onCreate,
                 <span style={{ fontSize:14, fontWeight:500, textDecoration:tk.done?"line-through":"none", color:tk.done?"#A8A29E":"#1C1917", flex:1 }}>{tk.text}</span>
                 <DueBadge dueDate={tk.dueDate} done={tk.done}/>
                 <input type="date" value={tk.dueDate||""} onChange={e => tk.standalone ? onSetStandaloneDueDate?.(tk.id, e.target.value) : onSetDueDate?.(tk.note?.id, tk.id, e.target.value)}
-                  style={{ ...s.dateInp, fontSize:10, padding:"1px 3px", width:24, opacity:0.3, cursor:"pointer" }} title={t.edDueDate||"Due date"}/>
+                  style={{ ...s.dateInp, fontSize:10, padding:"1px 3px", minWidth:110, cursor:"pointer" }} title={t.edDueDate||"Due date"}/>
               </div>
               {tk.standalone ? (
                 <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", marginTop:3 }}>

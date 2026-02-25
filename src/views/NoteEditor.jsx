@@ -129,8 +129,8 @@ export default function NoteEditor() {
                 {task.done && <span style={{ color:"#fff", fontSize:10 }}>{"\u2713"}</span>}
               </div>
               <span style={{ fontSize:13, color:"#44403C", textDecoration:task.done?"line-through":"none", flex:1 }}>{task.text}</span>
-              <input type="date" value={task.dueDate||""} onChange={e=>setTaskDueDate(task.id,e.target.value)}
-                style={{ ...s.dateInp, fontSize:10, padding:"2px 4px", width:task.dueDate?110:28, opacity:task.dueDate?1:0.4,
+              <input type="date" draggable={false} onMouseDown={e=>e.stopPropagation()} value={task.dueDate||""} onChange={e=>setTaskDueDate(task.id,e.target.value)}
+                style={{ ...s.dateInp, fontSize:10, padding:"2px 4px", minWidth:110,
                   color: overdue?"#EF4444":dueToday?"#D97706":"#78716C",
                   borderColor: overdue?"#FECACA":dueToday?"#FDE68A":"#E7E5E4" }}
                 title={t.edDueDate||"Due date"}/>
