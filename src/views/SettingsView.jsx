@@ -33,7 +33,7 @@ function downloadFile(content, filename, type) {
 }
 
 export default function SettingsView() {
-  const { t, user, space, lang, setLang, syncStatus, handleLogout,
+  const { t, user, space, lang, setLang, theme, setTheme, syncStatus, handleLogout,
     allNotes, spaces, standaloneTasks, setAllNotes, setSpaces, setStandaloneTasks,
   } = useApp();
   const isMobile = useIsMobile();
@@ -116,6 +116,17 @@ export default function SettingsView() {
               onClick={()=>setLang("pl")}>{t.setPolish}</button>
             <button style={{ ...s.ctrlBtn, ...(lang==="en"?{background:space.color+"18",color:space.color,borderColor:space.color+"44"}:{}) }}
               onClick={()=>setLang("en")}>{t.setEnglish}</button>
+          </div>
+        </div>
+
+        {/* Theme */}
+        <div style={s.setSection}>
+          <div style={s.setLabel}>{t.setTheme}</div>
+          <div style={{ display:"flex", gap:8, marginTop:4 }}>
+            <button style={{ ...s.ctrlBtn, ...(theme==="light"?{background:space.color+"18",color:space.color,borderColor:space.color+"44"}:{}) }}
+              onClick={()=>setTheme("light")}>{t.setLight}</button>
+            <button style={{ ...s.ctrlBtn, ...(theme==="dark"?{background:space.color+"18",color:space.color,borderColor:space.color+"44"}:{}) }}
+              onClick={()=>setTheme("dark")}>{t.setDark}</button>
           </div>
         </div>
 

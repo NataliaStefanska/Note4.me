@@ -42,6 +42,7 @@ export const T = {
     quickCapturePh:"Szybka notatka",
     edDueDate:"Termin",
     setExport:"Eksport / Import", exportMd:"Eksport Markdown", exportJson:"Eksport JSON", importJson:"Import JSON",
+    setTheme:"Motyw", setLight:"Jasny", setDark:"Ciemny",
   },
   en: {
     loginTagline:"Your notes. Your rules.", loginSync:"Cross-device synchronization",
@@ -86,5 +87,6 @@ export const T = {
     quickCapturePh:"Quick note",
     edDueDate:"Due date",
     setExport:"Export / Import", exportMd:"Export Markdown", exportJson:"Export JSON", importJson:"Import JSON",
+    setTheme:"Theme", setLight:"Light", setDark:"Dark",
   },
 };

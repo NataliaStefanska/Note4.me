@@ -13,6 +13,7 @@ export function useApp() {
 
 export function AppProvider({ children }) {
   const [lang,        setLang]        = useState(() => { try { return localStorage.getItem("noteio_lang") || "pl"; } catch { return "pl"; } });
+  const [theme,       setThemeState]  = useState(() => { try { return localStorage.getItem("noteio_theme") || "light"; } catch { return "light"; } });
   const [user,        setUser]        = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [spaces,      setSpaces]      = useState(INITIAL_SPACES);
@@ -96,6 +97,11 @@ export function AppProvider({ children }) {
   }, [user]);
 
   useEffect(() => { try { localStorage.setItem("noteio_lang", lang); } catch { /* localStorage unavailable */ } }, [lang]);
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    try { localStorage.setItem("noteio_theme", theme); } catch { /* localStorage unavailable */ }
+  }, [theme]);
+  function setTheme(t) { setThemeState(t); }
   useEffect(() => {
     if (!user || authLoading) return;
     syncToFirestore({ spaces, activeSpace, allNotes, standaloneTasks, lang });
@@ -268,7 +274,7 @@ export function AppProvider({ children }) {
 
   const value = {
     // state
-    lang, setLang, user, authLoading, spaces, setSpaces, activeSpace, setActiveSpace,
+    lang, setLang, theme, setTheme, user, authLoading, spaces, setSpaces, activeSpace, setActiveSpace,
     allNotes, setAllNotes, standaloneTasks, setStandaloneTasks, active, setActive,
     search, setSearch, filterTag, setFilterTag, newTask, setNewTask,
     showIntent, setShowIntent, showTask, setShowTask, showTagPick, setShowTagPick,
