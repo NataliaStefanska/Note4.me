@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 import { useApp } from "../context/AppContext";
 import { useIsMobile } from "../hooks/useIsMobile";
 import { daysSince } from "../constants/data";
@@ -12,17 +13,18 @@ export default function NoteEditor() {
     t, space, active, setActive, allNotes, activeSpace, linkSearch, setLinkSearch,
     autoSaveStatus, setAutoSaveStatus, contentEmpty, showTagPick, setShowTagPick,
     newTask, setNewTask, titleRef, contentEditRef, contentWrapRef,
-    saveNote, triggerAutoSave, toggleTask, addTask, toggleTag,
+    saveNote, triggerAutoSave, toggleTask, addTask, toggleTag, openNote,
     handleContentKeyDown, handleContentPaste, handleContentInput, handleLinkSelect,
     archiveNote, unarchiveNote, setShowDeleteConfirm,
   } = useApp();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
 
-  if (!active) {
-    navigate("/", { replace: true });
-    return null;
-  }
+  useEffect(() => {
+    if (!active) navigate("/", { replace: true });
+  }, [active, navigate]);
+
+  if (!active) return null;
 
   function goBack() {
     saveNote(true);
@@ -61,7 +63,7 @@ export default function NoteEditor() {
               {autoSaveStatus==="saving"?t.autoSaving:t.autoSaved}
             </span>
           )}
-          {!active.archived && <button style={{ ...s.ctrlBtn, color:"#78716C" }} onClick={()=>archiveNote(active.id)} title={t.archiveBtn}>
+          {!active.archived && <button style={{ ...s.ctrlBtn, color:"#78716C" }} onClick={()=>{archiveNote(active.id);navigate("/");}} title={t.archiveBtn}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
           </button>}
           <button style={{ ...s.ctrlBtn, color:"#EF4444", borderColor:"#FECACA" }} onClick={()=>setShowDeleteConfirm(active.id)} title={t.deleteBtn}>
@@ -134,7 +136,7 @@ export default function NoteEditor() {
               <div style={s.toolLbl}>{t.linkedNotesLabel}</div>
               <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
                 {linked.map(n => (
-                  <button key={n.id} onClick={()=>{/* openNote handled by context, but we stay in editor */}} style={{
+                  <button key={n.id} onClick={()=>openNote(n)} style={{
                     fontSize:12, padding:"4px 10px", borderRadius:6,
                     background:space.color+"12", color:space.color, border:"1px solid "+space.color+"33",
                     cursor:"pointer", fontFamily:"inherit"
@@ -150,7 +152,7 @@ export default function NoteEditor() {
               <div style={s.toolLbl}>{t.backlinksLabel}</div>
               <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
                 {backlinks.map(n => (
-                  <button key={n.id} onClick={()=>{}} style={{
+                  <button key={n.id} onClick={()=>openNote(n)} style={{
                     fontSize:12, padding:"4px 10px", borderRadius:6,
                     background:"#F5F5F4", color:"#57534E", border:"1px solid #E7E5E4",
                     cursor:"pointer", fontFamily:"inherit"

@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 import { useIsMobile } from "../hooks/useIsMobile";
 import { daysSince } from "../constants/data";
@@ -12,6 +13,17 @@ export default function NotesList() {
     unarchiveNote, setShowDeleteConfirm,
   } = useApp();
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
+
+  function handleOpenNote(note) {
+    openNote(note);
+    navigate("/editor");
+  }
+
+  function handleQuickCapture() {
+    quickCapture();
+    navigate("/editor");
+  }
 
   return (
     <div style={{ display:"flex", flexDirection:"column", height:"100%" }}>
@@ -31,7 +43,7 @@ export default function NotesList() {
           </button>
           <button style={{ ...s.ctrlBtn, ...(sortOrder==="desc"?{color:space.color}:{}) }} onClick={()=>setSortOrder(v=>v==="desc"?"asc":"desc")}>{sortOrder==="desc"?"\u2193":"\u2191"}</button>
           <button style={{ ...s.ctrlBtn, ...(showDate||dateFrom||dateTo?{color:space.color,background:space.color+"15"}:{}) }} onClick={()=>setShowDate(v=>!v)}>{"\u{1F4C5}"}</button>
-          {!isMobile && <button style={{ ...s.ctrlBtn, background:space.color, color:"#fff", border:"none" }} onClick={quickCapture}>{t.listNew}</button>}
+          {!isMobile && <button style={{ ...s.ctrlBtn, background:space.color, color:"#fff", border:"none" }} onClick={handleQuickCapture}>{t.listNew}</button>}
         </div>
         {showArchived && (
           <div style={{ display:"flex", alignItems:"center", gap:8 }}>
@@ -54,7 +66,7 @@ export default function NotesList() {
           const done=note.tasks.filter(tk=>tk.done).length;
           return (
             <div key={note.id} style={{ ...s.noteRow, opacity:stale&&!note.archived?.55:1 }}>
-              <div style={{ flex:1, minWidth:0, display:"flex", flexDirection:"column", gap:3, cursor:"pointer" }} onClick={()=>openNote(note)}>
+              <div style={{ flex:1, minWidth:0, display:"flex", flexDirection:"column", gap:3, cursor:"pointer" }} onClick={()=>handleOpenNote(note)}>
                 <div style={{ fontSize:14, fontWeight:600, color:"#1C1917" }}>{note.title||t.listNoTitle}</div>
                 {note.intent && <div style={{ fontSize:11, color:"#A8A29E", fontStyle:"italic" }}>{"\u2192"} {note.intent}</div>}
                 <div style={{ fontSize:12, color:"#78716C", overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{textPreview(note.content, 72)}</div>
