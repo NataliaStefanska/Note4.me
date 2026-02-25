@@ -5,6 +5,13 @@ import { daysSince } from "../constants/data";
 import { textPreview } from "../utils/helpers";
 import { s } from "../styles/appStyles";
 
+function Highlight({ text, query }) {
+  if (!query || !text) return text;
+  const idx = text.toLowerCase().indexOf(query.toLowerCase());
+  if (idx === -1) return text;
+  return <>{text.slice(0, idx)}<mark style={{ background:"#FEF08A", color:"inherit", borderRadius:2, padding:"0 1px" }}>{text.slice(idx, idx + query.length)}</mark>{text.slice(idx + query.length)}</>;
+}
+
 export default function NotesList() {
   const {
     t, space, notes, filtered, search, setSearch, showArchived, setShowArchived,
@@ -67,9 +74,9 @@ export default function NotesList() {
           return (
             <div key={note.id} style={{ ...s.noteRow, opacity:stale&&!note.archived?.55:1 }}>
               <div style={{ flex:1, minWidth:0, display:"flex", flexDirection:"column", gap:3, cursor:"pointer" }} onClick={()=>handleOpenNote(note)}>
-                <div style={{ fontSize:14, fontWeight:600, color:"#1C1917" }}>{note.title||t.listNoTitle}</div>
-                {note.intent && <div style={{ fontSize:11, color:"#A8A29E", fontStyle:"italic" }}>{"\u2192"} {note.intent}</div>}
-                <div style={{ fontSize:12, color:"#78716C", overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{textPreview(note.content, 72)}</div>
+                <div style={{ fontSize:14, fontWeight:600, color:"#1C1917" }}>{search ? <Highlight text={note.title||t.listNoTitle} query={search}/> : (note.title||t.listNoTitle)}</div>
+                {note.intent && <div style={{ fontSize:11, color:"#A8A29E", fontStyle:"italic" }}>{"\u2192"} {search ? <Highlight text={note.intent} query={search}/> : note.intent}</div>}
+                <div style={{ fontSize:12, color:"#78716C", overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{search ? <Highlight text={textPreview(note.content, 72)} query={search}/> : textPreview(note.content, 72)}</div>
               </div>
               <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4, flexShrink:0 }}>
                 <div style={{ display:"flex", gap:4, alignItems:"center" }}>
@@ -89,7 +96,7 @@ export default function NotesList() {
                     </button>
                   </div>
                 </div>
-                <div style={{ display:"flex", gap:4, flexWrap:"wrap", justifyContent:"flex-end" }}>{note.tags.map(tg=><span key={tg} style={s.tinyTag}>{tg}</span>)}</div>
+                <div style={{ display:"flex", gap:4, flexWrap:"wrap", justifyContent:"flex-end" }}>{note.tags.map(tg=><span key={tg} style={{ ...s.tinyTag, ...(search && tg.toLowerCase().includes(search.toLowerCase()) ? {background:"#FEF08A"} : {}) }}>{tg}</span>)}</div>
                 {note.tasks.length>0 && <div style={{ fontSize:10, color:"#A8A29E" }}>{done}/{note.tasks.length}</div>}
                 {stale && !note.archived && <div style={{ width:6,height:6,borderRadius:"50%",background:"#F59E0B" }}/>}
                 {note.archived && <span style={{ fontSize:9, color:"#7C3AED", background:"#EDE9FE", padding:"1px 5px", borderRadius:3 }}>{"\u{1F4E6}"}</span>}

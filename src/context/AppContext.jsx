@@ -111,7 +111,14 @@ export function AppProvider({ children }) {
     .filter(n => {
       const ma = showArchived ? !!n.archived : !n.archived;
       const mt = filterTag ? n.tags.includes(filterTag) : true;
-      const ms = search ? n.title.toLowerCase().includes(search.toLowerCase())||textPreview(n.content,99999).toLowerCase().includes(search.toLowerCase()) : true;
+      const q = search.toLowerCase();
+      const ms = search ? (
+        n.title.toLowerCase().includes(q) ||
+        textPreview(n.content,99999).toLowerCase().includes(q) ||
+        n.tags.some(tg => tg.toLowerCase().includes(q)) ||
+        n.tasks.some(tk => tk.text.toLowerCase().includes(q)) ||
+        (n.intent || '').toLowerCase().includes(q)
+      ) : true;
       const mf = dateFrom ? n.updatedAt>=dateFrom : true;
       const mtd= dateTo   ? n.updatedAt<=dateTo   : true;
       return ma&&mt&&ms&&mf&&mtd;
