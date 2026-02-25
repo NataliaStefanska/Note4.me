@@ -41,6 +41,7 @@ export const T = {
     autoSaved:"Zapisano", autoSaving:"Zapisywanie...",
     quickCapturePh:"Szybka notatka",
     edDueDate:"Termin",
+    setExport:"Eksport / Import", exportMd:"Eksport Markdown", exportJson:"Eksport JSON", importJson:"Import JSON",
   },
   en: {
     loginTagline:"Your notes. Your rules.", loginSync:"Cross-device synchronization",
@@ -84,5 +85,6 @@ export const T = {
     autoSaved:"Saved", autoSaving:"Saving...",
     quickCapturePh:"Quick note",
     edDueDate:"Due date",
+    setExport:"Export / Import", exportMd:"Export Markdown", exportJson:"Export JSON", importJson:"Import JSON",
   },
 };
