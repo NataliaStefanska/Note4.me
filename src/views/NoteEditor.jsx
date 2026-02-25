@@ -1,24 +1,25 @@
 import { useNavigate } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useApp } from "../context/AppContext";
 import { useIsMobile } from "../hooks/useIsMobile";
 import { daysSince } from "../constants/data";
+import { contentToHtml } from "../utils/helpers";
 import { s } from "../styles/appStyles";
-import FloatingFormatBar from "../components/FloatingFormatBar";
+import TiptapEditor from "../components/TiptapEditor";
 import LinkAutocomplete from "../components/LinkAutocomplete";
 import TagPicker from "../components/TagPicker";
 
 export default function NoteEditor() {
   const {
     t, space, active, setActive, allNotes, activeSpace, linkSearch, setLinkSearch,
-    autoSaveStatus, setAutoSaveStatus, contentEmpty, showTagPick, setShowTagPick,
-    newTask, setNewTask, titleRef, contentEditRef, contentWrapRef,
-    saveNote, triggerAutoSave, toggleTask, addTask, toggleTag, openNote,
-    handleContentKeyDown, handleContentPaste, handleContentInput, handleLinkSelect,
+    autoSaveStatus, setAutoSaveStatus, showTagPick, setShowTagPick,
+    newTask, setNewTask, titleRef, editorRef,
+    saveNote, triggerAutoSave, toggleTask, addTask, toggleTag, openNote, handleLinkSelect,
     archiveNote, unarchiveNote, setShowDeleteConfirm,
   } = useApp();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
+  const contentWrapRef = useRef(null);
 
   useEffect(() => {
     if (!active) navigate("/", { replace: true });
@@ -71,22 +72,19 @@ export default function NoteEditor() {
           </button>
         </div>
       </div>
-      <div style={{ flex:1, padding:"20px", display:"flex", flexDirection:"column", gap:12, overflowY:"auto" }}>
+      <div style={{ flex:1, padding:"20px", display:"flex", flexDirection:"column", gap:12, overflow:"hidden" }}>
         <input ref={titleRef} style={s.titleInp} value={active.title} placeholder={t.edTitlePh} onChange={e=>{setActive(p=>({...p,title:e.target.value}));triggerAutoSave();}}/>
-        <div ref={contentWrapRef} style={{ position:"relative", flex:1, minHeight:isMobile?160:220 }}>
-          <FloatingFormatBar wrapRef={contentWrapRef} contentRef={contentEditRef}/>
-          {contentEmpty && <div style={{ position:"absolute", top:0, left:0, color:"#A8A29E", fontSize:14, lineHeight:1.7, pointerEvents:"none", userSelect:"none" }}>{t.edContentPh}</div>}
-          <div ref={contentEditRef}
-            contentEditable suppressContentEditableWarning
-            style={{ ...s.contentArea, minHeight:isMobile?160:220, outline:"none" }}
-            onInput={handleContentInput}
-            onKeyDown={(e) => {
-              if (linkSearch) {
-                if (e.key === "Escape") { setLinkSearch(null); e.preventDefault(); return; }
-              }
-              handleContentKeyDown(e);
-            }}
-            onPaste={handleContentPaste}/>
+        <div ref={contentWrapRef} style={{ position:"relative", flex:1, minHeight:isMobile?160:220, display:"flex", flexDirection:"column" }}>
+          <TiptapEditor
+            key={active.id}
+            content={contentToHtml(active.content)}
+            placeholder={t.edContentPh}
+            editorRef={editorRef}
+            wrapRef={contentWrapRef}
+            onUpdate={triggerAutoSave}
+            onLinkSearch={setLinkSearch}
+            isMobile={isMobile}
+          />
           {linkSearch && (
             <LinkAutocomplete
               notes={(allNotes[activeSpace]||[]).filter(n=>n.id!==active.id && !n.archived)}

@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useRef, useEffect, useCallback } f
 import { loginWithGoogle, logout, onAuth, saveUserData, loadUserData } from "../firebase";
 import { TODAY, INITIAL_SPACES, INITIAL_NOTES, daysSince } from "../constants/data";
 import { T } from "../i18n/translations";
-import { textPreview, contentToHtml } from "../utils/helpers";
+import { textPreview } from "../utils/helpers";
 
 const AppContext = createContext(null);
 
@@ -37,13 +37,11 @@ export function AppProvider({ children }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
   const [syncStatus,  setSyncStatus]  = useState("idle");
   const [showSaveToast, setShowSaveToast] = useState(false);
-  const [contentEmpty, setContentEmpty] = useState(true);
   const [linkSearch, setLinkSearch] = useState(null);
   const [autoSaveStatus, setAutoSaveStatus] = useState(null);
 
   const titleRef = useRef();
-  const contentEditRef = useRef(null);
-  const contentWrapRef = useRef(null);
+  const editorRef = useRef(null);
   const saveTimer = useRef(null);
   const saveToastTimer = useRef(null);
   const autoSaveTimer = useRef(null);
@@ -128,10 +126,7 @@ export function AppProvider({ children }) {
       updatedAt:TODAY.toISOString().split("T")[0], lastOpened:TODAY.toISOString().split("T")[0] };
     setAllNotes(p=>({...p,[activeSpace]:[n,...(p[activeSpace]||[])]}));
     setActive({...n});
-    setTimeout(()=>{
-      if(titleRef.current) titleRef.current.focus();
-      if(contentEditRef.current) { contentEditRef.current.innerHTML=''; setContentEmpty(true); }
-    },80);
+    setTimeout(()=>{ if(titleRef.current) titleRef.current.focus(); },80);
   }
 
   function handleIntent(intent) {
@@ -139,10 +134,7 @@ export function AppProvider({ children }) {
       updatedAt:TODAY.toISOString().split("T")[0], lastOpened:TODAY.toISOString().split("T")[0] };
     setAllNotes(p=>({...p,[activeSpace]:[n,...(p[activeSpace]||[])]}));
     setActive({...n}); setShowIntent(false);
-    setTimeout(()=>{
-      if(titleRef.current) titleRef.current.focus();
-      if(contentEditRef.current) { contentEditRef.current.innerHTML=''; setContentEmpty(true); }
-    },80);
+    setTimeout(()=>{ if(titleRef.current) titleRef.current.focus(); },80);
   }
 
   function handleTaskIntent(why, what) {
@@ -154,12 +146,6 @@ export function AppProvider({ children }) {
 
   function openNote(note) {
     setActive({...note, lastOpened:TODAY.toISOString().split("T")[0]});
-    setTimeout(() => {
-      if (contentEditRef.current) {
-        contentEditRef.current.innerHTML = contentToHtml(note.content);
-        setContentEmpty(!contentEditRef.current.textContent.trim());
-      }
-    }, 0);
   }
 
   function parseLinkedNotes(html) {
@@ -176,7 +162,7 @@ export function AppProvider({ children }) {
 
   function saveNote(silent) {
     if(!active) return;
-    const content = contentEditRef.current ? contentEditRef.current.innerHTML : active.content;
+    const content = editorRef.current ? editorRef.current.getHTML() : active.content;
     const linkedNotes = parseLinkedNotes(content);
     const updated = {...active, content, linkedNotes, updatedAt:TODAY.toISOString().split("T")[0]};
     setAllNotes(p=>({...p,[activeSpace]:(p[activeSpace]||[]).map(n=>n.id===updated.id?{...updated}:n)}));
@@ -214,70 +200,26 @@ export function AppProvider({ children }) {
   }
   function addTask() { if(!newTask.trim()) return; setActive(p=>({...p,tasks:[...p.tasks,{id:"t"+Date.now(),text:newTask,done:false}]})); setNewTask(""); }
 
-  function handleContentKeyDown(e) {
-    if ((e.ctrlKey||e.metaKey)&&e.key==='b') { e.preventDefault(); document.execCommand('bold'); }
-    if ((e.ctrlKey||e.metaKey)&&e.key==='i') { e.preventDefault(); document.execCommand('italic'); }
-    if ((e.ctrlKey||e.metaKey)&&e.key==='u') { e.preventDefault(); document.execCommand('underline'); }
-    if ((e.ctrlKey||e.metaKey)&&e.shiftKey&&(e.key==='s'||e.key==='S')) { e.preventDefault(); document.execCommand('strikeThrough'); }
-  }
-  function handleContentPaste(e) {
-    e.preventDefault();
-    const text = e.clipboardData.getData('text/plain');
-    document.execCommand('insertText', false, text);
-  }
-  function handleContentInput() {
-    if (contentEditRef.current) setContentEmpty(!contentEditRef.current.textContent.trim());
-    const sel = window.getSelection();
-    if (sel && sel.rangeCount > 0 && contentEditRef.current) {
-      const range = sel.getRangeAt(0);
-      if (contentEditRef.current.contains(range.startContainer)) {
-        const textNode = range.startContainer;
-        if (textNode.nodeType === Node.TEXT_NODE) {
-          const textBefore = textNode.textContent.slice(0, range.startOffset);
-          const openIdx = textBefore.lastIndexOf("[[");
-          const closeIdx = textBefore.lastIndexOf("]]");
-          if (openIdx !== -1 && openIdx > closeIdx) {
-            const query = textBefore.slice(openIdx + 2);
-            try {
-              const rect = range.getBoundingClientRect();
-              const wrapRect = contentWrapRef.current.getBoundingClientRect();
-              setLinkSearch({
-                query,
-                pos: { top: rect.bottom - wrapRect.top + 4, left: Math.max(0, rect.left - wrapRect.left) }
-              });
-            } catch { setLinkSearch(null); }
-          } else {
-            setLinkSearch(null);
-          }
-        } else {
-          setLinkSearch(null);
-        }
-      }
-    }
-    triggerAutoSave();
-  }
   function handleLinkSelect(note) {
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) { setLinkSearch(null); return; }
-    const range = sel.getRangeAt(0);
-    const textNode = range.startContainer;
-    if (textNode.nodeType !== Node.TEXT_NODE) { setLinkSearch(null); return; }
-    const text = textNode.textContent;
-    const cursorPos = range.startOffset;
-    const openIdx = text.lastIndexOf("[[", cursorPos - 1);
+    const editor = editorRef.current;
+    if (!editor) { setLinkSearch(null); return; }
+    const { state } = editor;
+    const { from } = state.selection;
+    const start = Math.max(0, from - 200);
+    let textBefore;
+    try { textBefore = state.doc.textBetween(start, from, null, '\ufffc'); }
+    catch { setLinkSearch(null); return; }
+    const openIdx = textBefore.lastIndexOf('[[');
     if (openIdx === -1) { setLinkSearch(null); return; }
-    const before = text.slice(0, openIdx);
-    const after = text.slice(cursorPos);
-    textNode.textContent = before + "[[" + note.title + "]]" + after;
-    const newPos = before.length + 2 + note.title.length + 2;
-    const newRange = document.createRange();
-    newRange.setStart(textNode, Math.min(newPos, textNode.textContent.length));
-    newRange.collapse(true);
-    sel.removeAllRanges();
-    sel.addRange(newRange);
+    const replaceFrom = from - (textBefore.length - openIdx);
+    editor.chain().focus()
+      .deleteRange({ from: replaceFrom, to: from })
+      .insertContent('[[' + note.title + ']]')
+      .run();
     setLinkSearch(null);
     triggerAutoSave();
   }
+
   function toggleTag(tag) {
     setActive(p=>{
       const updated = {...p, tags:p.tags.includes(tag)?p.tags.filter(t=>t!==tag):[...p.tags,tag]};
@@ -317,16 +259,16 @@ export function AppProvider({ children }) {
     dateFrom, setDateFrom, dateTo, setDateTo, showDate, setShowDate,
     showDrawer, setShowDrawer, showArchived, setShowArchived,
     showDeleteConfirm, setShowDeleteConfirm, syncStatus, showSaveToast,
-    contentEmpty, setContentEmpty, linkSearch, setLinkSearch, autoSaveStatus, setAutoSaveStatus,
+    linkSearch, setLinkSearch, autoSaveStatus, setAutoSaveStatus,
     // refs
-    titleRef, contentEditRef, contentWrapRef,
+    titleRef, editorRef,
     // derived
     t, notes, space, allTags, staleN, archivedN, filtered,
     // actions
     switchSpace, createNote, createTask, quickCapture, handleIntent, handleTaskIntent,
     openNote, saveNote, triggerAutoSave, toggleTask, toggleTaskInList, toggleStandaloneTask,
-    addTask, handleContentKeyDown, handleContentPaste, handleContentInput, handleLinkSelect,
-    toggleTag, deleteNote, archiveNote, unarchiveNote, handleLogin, handleLogout,
+    addTask, handleLinkSelect, toggleTag, deleteNote, archiveNote, unarchiveNote,
+    handleLogin, handleLogout,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
