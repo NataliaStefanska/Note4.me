@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { s } from "../styles/appStyles";
+import DueDatePicker from "./DueDatePicker";
 
 function DueBadge({ dueDate, done }) {
   if (!dueDate) return null;
@@ -105,8 +106,7 @@ export default function TasksView({ notes, color, allTags, onOpenNote, onCreate,
               <div style={{ display:"flex", alignItems:"center", gap:6 }}>
                 <span style={{ fontSize:14, fontWeight:500, textDecoration:tk.done?"line-through":"none", color:tk.done?"#A8A29E":"#1C1917", flex:1 }}>{tk.text}</span>
                 <DueBadge dueDate={tk.dueDate} done={tk.done}/>
-                <input type="date" value={tk.dueDate||""} onChange={e => tk.standalone ? onSetStandaloneDueDate?.(tk.id, e.target.value) : onSetDueDate?.(tk.note?.id, tk.id, e.target.value)}
-                  style={{ ...s.dateInp, fontSize:10, padding:"1px 3px", minWidth:110, cursor:"pointer" }} title={t.edDueDate||"Due date"}/>
+                <DueDatePicker value={tk.dueDate||""} onChange={v => tk.standalone ? onSetStandaloneDueDate?.(tk.id, v) : onSetDueDate?.(tk.note?.id, tk.id, v)} t={t}/>
               </div>
               {tk.standalone ? (
                 <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", marginTop:3 }}>

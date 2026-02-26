@@ -90,15 +90,15 @@ export default function TiptapEditor({ content, placeholder, editorRef, wrapRef,
   if (!editor) return null;
 
   const tbtn = (active) => ({
-    background: active ? '#F5F5F4' : 'transparent',
-    border: active ? '1px solid #E7E5E4' : '1px solid transparent',
+    background: active ? 'var(--bg-card)' : 'transparent',
+    border: active ? '1px solid var(--border)' : '1px solid transparent',
     borderRadius: 5, padding: '4px 7px', cursor: 'pointer',
-    color: active ? '#1C1917' : '#78716C', fontSize: 12,
+    color: active ? 'var(--text-primary)' : 'var(--text-muted)', fontSize: 12,
     fontFamily: 'inherit', fontWeight: active ? 600 : 400,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     minWidth: 28, height: 28, transition: 'all .15s',
   });
-  const sep = { width: 1, height: 18, background: '#E7E5E4', margin: '0 4px', flexShrink: 0 };
+  const sep = { width: 1, height: 18, background: 'var(--border)', margin: '0 4px', flexShrink: 0 };
   const bbtn = (active) => ({
     background: active ? '#44403C' : 'transparent', border: 'none',
     color: '#E7E5E4', cursor: 'pointer', width: 30, height: 30,
@@ -113,7 +113,7 @@ export default function TiptapEditor({ content, placeholder, editorRef, wrapRef,
       onKeyDown={(e) => { if (e.key === 'Escape') onLinkSearch?.(null); }}
     >
       {/* Toolbar */}
-      <div style={{ display: 'flex', gap: 2, padding: '6px 8px', borderBottom: '1px solid #F5F5F4', flexWrap: 'wrap', alignItems: 'center', flexShrink: 0 }}>
+      <div style={{ display: 'flex', gap: 2, padding: '6px 8px', borderBottom: '1px solid var(--border-light)', flexWrap: 'wrap', alignItems: 'center', flexShrink: 0 }}>
         <button style={tbtn(editor.isActive('heading', { level: 1 }))} onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleHeading({ level: 1 }).run(); }} title="Heading 1">H1</button>
         <button style={tbtn(editor.isActive('heading', { level: 2 }))} onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleHeading({ level: 2 }).run(); }} title="Heading 2">H2</button>
         <button style={tbtn(editor.isActive('heading', { level: 3 }))} onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleHeading({ level: 3 }).run(); }} title="Heading 3">H3</button>

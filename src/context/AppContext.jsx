@@ -47,7 +47,6 @@ export function AppProvider({ children }) {
   const [showSaveToast, setShowSaveToast] = useState(false);
   const [linkSearch, setLinkSearch] = useState(null);
   const [autoSaveStatus, setAutoSaveStatus] = useState(null);
-  const [searchMode, setSearchMode] = useState("text"); // "text" | "vector"
   const [embedderStatus, setEmbedderStatus] = useState("idle"); // "idle" | "loading" | "ready" | "error"
   const [semanticResults, setSemanticResults] = useState(null);
 
@@ -87,8 +86,10 @@ export function AppProvider({ children }) {
             if (data.lang) setLang(data.lang);
           }
           setSyncStatus("synced");
-        } catch {
-          setSyncStatus("error");
+        } catch (err) {
+          // Gracefully handle offline/network failures — use local data, don't show error
+          console.warn("Firebase load failed, using local data:", err?.message || err);
+          setSyncStatus(navigator.onLine ? "error" : "offline");
         }
       } else {
         setUser(null);
@@ -166,8 +167,9 @@ export function AppProvider({ children }) {
           await Promise.all(promises);
         }
         setSyncStatus("synced");
-      } catch {
-        setSyncStatus("error");
+      } catch (err) {
+        console.warn("Firebase sync failed:", err?.message || err);
+        setSyncStatus(navigator.onLine ? "error" : "offline");
       }
     }, 1500);
   }, [user, authLoading, lang, activeSpace, spaces, allNotes, standaloneTasks]);
@@ -189,34 +191,22 @@ export function AppProvider({ children }) {
   const staleN = notes.filter(n=>!n.archived&&daysSince(n.lastOpened)>=30).length;
   const archivedN = notes.filter(n=>n.archived).length;
 
-  // Vector search: init embedder on mode switch
+  // Vector search: lazy init embedder in background on first search
+  const embedderInitAttempted = useRef(false);
   useEffect(() => {
-    if (searchMode !== "vector") return;
+    if (!search.trim() || embedderInitAttempted.current) return;
+    embedderInitAttempted.current = true;
     if (isEmbedderReady()) { setEmbedderStatus("ready"); return; }
     setEmbedderStatus("loading");
     initEmbedder().then(() => setEmbedderStatus("ready")).catch(() => setEmbedderStatus("error"));
-  }, [searchMode]);
+  }, [search]);
 
-  // Vector search: index notes when they change and embedder is ready
+  // Vector search: index notes when embedder is ready
   const vectorSearchTimer = useRef(null);
   useEffect(() => {
-    if (searchMode !== "vector" || embedderStatus !== "ready") return;
+    if (embedderStatus !== "ready") return;
     indexNotes(notes);
-  }, [notes, searchMode, embedderStatus]);
-
-  // Vector search: debounced semantic query
-  useEffect(() => {
-    if (searchMode !== "vector" || embedderStatus !== "ready" || !search.trim()) {
-      setSemanticResults(null);
-      return;
-    }
-    if (vectorSearchTimer.current) clearTimeout(vectorSearchTimer.current);
-    vectorSearchTimer.current = setTimeout(async () => {
-      const results = await vsearch(search, notes);
-      setSemanticResults(results);
-    }, 400);
-    return () => { if (vectorSearchTimer.current) clearTimeout(vectorSearchTimer.current); };
-  }, [search, notes, searchMode, embedderStatus]);
+  }, [notes, embedderStatus]);
 
   // Fuse.js index for fuzzy text search
   const fuseIndex = useMemo(() => {
@@ -272,7 +262,21 @@ export function AppProvider({ children }) {
       .sort((a,b)=>sortOrder==="desc"?b.updatedAt.localeCompare(a.updatedAt):a.updatedAt.localeCompare(b.updatedAt));
   })();
 
-  const filtered = (searchMode === "vector" && search.trim() && semanticResults)
+  // Auto-fallback: if text search finds 0 and semantic is ready, try semantic
+  const useSemanticFallback = search.trim().length >= 3 && textFiltered.length === 0 && embedderStatus === "ready";
+
+  // Debounced semantic search when fallback is needed
+  useEffect(() => {
+    if (!useSemanticFallback || !search.trim()) { setSemanticResults(null); return; }
+    if (vectorSearchTimer.current) clearTimeout(vectorSearchTimer.current);
+    vectorSearchTimer.current = setTimeout(async () => {
+      const results = await vsearch(search, notes);
+      setSemanticResults(results);
+    }, 400);
+    return () => { if (vectorSearchTimer.current) clearTimeout(vectorSearchTimer.current); };
+  }, [search, notes, useSemanticFallback]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const filtered = (useSemanticFallback && semanticResults)
     ? semanticResults.filter(n => {
         const ma = showArchived ? !!n.archived : !n.archived;
         const mt = filterTag ? n.tags.includes(filterTag) : true;
@@ -481,7 +485,7 @@ export function AppProvider({ children }) {
     showDrawer, setShowDrawer, showArchived, setShowArchived,
     showDeleteConfirm, setShowDeleteConfirm, syncStatus, showSaveToast, isOnline,
     linkSearch, setLinkSearch, autoSaveStatus, setAutoSaveStatus,
-    searchMode, setSearchMode, embedderStatus,
+    embedderStatus, useSemanticFallback,
     // refs
     titleRef, editorRef,
     // derived

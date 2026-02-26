@@ -5,9 +5,11 @@ import { useIsMobile } from "../hooks/useIsMobile";
 import { daysSince } from "../constants/data";
 import { contentToHtml } from "../utils/helpers";
 import { s } from "../styles/appStyles";
+import { m } from "../styles/modalStyles";
 import TiptapEditor from "../components/TiptapEditor";
 import LinkAutocomplete from "../components/LinkAutocomplete";
 import TagPicker from "../components/TagPicker";
+import DueDatePicker from "../components/DueDatePicker";
 import { isEmbedderReady } from "../utils/vectorSearch";
 import { suggestConnections, suggestTags } from "../utils/aiSuggestions";
 
@@ -161,11 +163,7 @@ export default function NoteEditor() {
                 {task.done && <span style={{ color:"#fff", fontSize:10 }}>{"\u2713"}</span>}
               </div>
               <span style={{ fontSize:13, color:"var(--text-secondary)", textDecoration:task.done?"line-through":"none", flex:1 }}>{task.text}</span>
-              <input type="date" draggable={false} onMouseDown={e=>e.stopPropagation()} value={task.dueDate||""} onChange={e=>setTaskDueDate(task.id,e.target.value)}
-                style={{ ...s.dateInp, fontSize:10, padding:"2px 4px", minWidth:110,
-                  color: overdue?"#EF4444":dueToday?"#D97706":"#78716C",
-                  borderColor: overdue?"#FECACA":dueToday?"#FDE68A":"#E7E5E4" }}
-                title={t.edDueDate||"Due date"}/>
+              <DueDatePicker value={task.dueDate||""} onChange={v=>setTaskDueDate(task.id,v)} t={t}/>
               <button onClick={()=>removeTask(task.id)} style={{ background:"transparent", border:"none", color:"var(--text-faint)", cursor:"pointer", padding:4, fontSize:14, lineHeight:1, flexShrink:0 }} title={t.deleteBtn}>{"\u00D7"}</button>
             </div>);
           })}
@@ -213,68 +211,76 @@ export default function NoteEditor() {
           )}
         </div>
       )}
-      {/* AI Suggestions */}
+      {/* AI Suggestions button */}
       <div style={{ padding:isMobile?"8px 16px":"8px 40px", borderTop:"1px solid var(--border-light)" }}>
         <div style={{ display:"flex", alignItems:"center", gap:8 }}>
           <button
-            onClick={showAiPanel && aiSuggestions ? () => setShowAiPanel(v => !v) : fetchAiSuggestions}
+            onClick={fetchAiSuggestions}
             disabled={aiLoading}
             style={{
               fontSize:12, padding:"5px 12px", borderRadius:8,
-              background: showAiPanel ? "linear-gradient(135deg, #8B5CF6, #6366F1)" : "var(--bg-card)",
-              color: showAiPanel ? "#fff" : "var(--text-muted)",
-              border: showAiPanel ? "none" : "1px solid var(--border)",
+              background:"var(--bg-card)", color:"var(--text-muted)",
+              border:"1px solid var(--border)",
               cursor: aiLoading ? "wait" : "pointer", fontFamily:"inherit",
               display:"flex", alignItems:"center", gap:6,
               transition: "all .2s",
             }}
           >
             {aiLoading && <span style={{ display:"inline-block", width:12, height:12, border:"2px solid var(--text-faint)", borderTopColor:"transparent", borderRadius:"50%", animation:"spin .6s linear infinite" }}/>}
-            {t.aiSuggest || "AI Suggestions"}
+            {t.aiSuggest}
           </button>
-          {showAiPanel && aiSuggestions && (
-            <button onClick={fetchAiSuggestions} disabled={aiLoading}
-              style={{ fontSize:11, background:"transparent", border:"none", color:"var(--text-faint)", cursor:"pointer", fontFamily:"inherit" }}>
-              {t.aiRefresh || "Refresh"}
-            </button>
-          )}
-          {aiNotReady && <span style={{ fontSize:11, color:"#F59E0B" }}>{t.aiNotReady || "Enable semantic search first"}</span>}
+          {aiNotReady && <span style={{ fontSize:11, color:"#F59E0B" }}>{t.aiNotReady}</span>}
         </div>
-        {showAiPanel && aiSuggestions && (
-          <div style={{ display:"flex", gap:isMobile?16:28, flexWrap:"wrap", marginTop:10, paddingBottom:6 }}>
-            {/* Suggested connections */}
+      </div>
+      {/* AI Suggestions modal */}
+      {showAiPanel && aiSuggestions && (
+        <div style={m.overlay} onClick={() => setShowAiPanel(false)}>
+          <div style={{ ...m.box, width:500, maxHeight:"80vh", overflowY:"auto" }} onClick={e => e.stopPropagation()}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+              <div style={m.q}>{t.aiSuggest}</div>
+              <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+                <button onClick={fetchAiSuggestions} disabled={aiLoading}
+                  style={{ fontSize:11, background:"transparent", border:"1px solid var(--border)", borderRadius:6, padding:"4px 10px", color:"var(--text-muted)", cursor:"pointer", fontFamily:"inherit" }}>
+                  {t.aiRefresh}
+                </button>
+                <button onClick={() => setShowAiPanel(false)}
+                  style={{ background:"transparent", border:"none", color:"var(--text-faint)", cursor:"pointer", fontSize:18, lineHeight:1 }}>{"\u00D7"}</button>
+              </div>
+            </div>
+            <div style={m.sub}>{active.title || t.listNoTitle}</div>
+            {/* Connections */}
             {aiSuggestions.connections.length > 0 && (
-              <div style={s.toolSec}>
-                <div style={{ ...s.toolLbl, display:"flex", alignItems:"center", gap:4 }}>
-                  <span style={{ fontSize:13 }}>{"\u{1F517}"}</span> {t.aiConnections || "Suggested connections"}
+              <div style={{ display:"flex", flexDirection:"column", gap:8, marginTop:8 }}>
+                <div style={{ ...s.toolLbl, display:"flex", alignItems:"center", gap:6 }}>
+                  <span style={{ fontSize:14 }}>{"\u{1F517}"}</span> {t.aiConnections}
                 </div>
-                <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
                   {aiSuggestions.connections.map(({ note: n, score }) => (
-                    <button key={n.id} onClick={()=>openNote(n)} style={{
-                      fontSize:12, padding:"4px 10px", borderRadius:6,
-                      background:"linear-gradient(135deg, #8B5CF622, #6366F122)",
-                      color:"#8B5CF6", border:"1px solid #8B5CF633",
-                      cursor:"pointer", fontFamily:"inherit",
-                      display:"flex", alignItems:"center", gap:4,
+                    <button key={n.id} onClick={() => { setShowAiPanel(false); openNote(n); }} style={{
+                      display:"flex", alignItems:"center", gap:10, padding:"8px 12px", borderRadius:8,
+                      background:"var(--bg-input)", border:"1px solid var(--border-light)",
+                      cursor:"pointer", fontFamily:"inherit", textAlign:"left",
                     }}>
-                      {n.title || t.listNoTitle}
-                      <span style={{ fontSize:9, opacity:.6 }}>{Math.round(score*100)}%</span>
+                      <span style={{ fontSize:13, fontWeight:500, color:"var(--text-primary)", flex:1, overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>
+                        {n.title || t.listNoTitle}
+                      </span>
+                      <span style={{ fontSize:10, color:"#8B5CF6", fontWeight:600, flexShrink:0 }}>{Math.round(score*100)}%</span>
                     </button>
                   ))}
                 </div>
               </div>
             )}
-            {/* Suggested tags */}
+            {/* Tags */}
             {aiSuggestions.tags.length > 0 && (
-              <div style={s.toolSec}>
-                <div style={{ ...s.toolLbl, display:"flex", alignItems:"center", gap:4 }}>
-                  <span style={{ fontSize:13 }}>{"\u{1F3F7}\uFE0F"}</span> {t.aiTags || "Suggested tags"}
+              <div style={{ display:"flex", flexDirection:"column", gap:8, marginTop:12 }}>
+                <div style={{ ...s.toolLbl, display:"flex", alignItems:"center", gap:6 }}>
+                  <span style={{ fontSize:14 }}>{"\u{1F3F7}\uFE0F"}</span> {t.aiTags}
                 </div>
                 <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
                   {aiSuggestions.tags.map(({ tag, fromNotes }) => (
                     <button key={tag} onClick={() => { toggleTag(tag); setAiSuggestions(prev => prev ? { ...prev, tags: prev.tags.filter(t => t.tag !== tag) } : prev); }}
                       style={{
-                        fontSize:12, padding:"3px 10px", borderRadius:6,
+                        fontSize:12, padding:"6px 14px", borderRadius:20,
                         background:"linear-gradient(135deg, #10B98122, #0EA5E922)",
                         color:"#10B981", border:"1px solid #10B98133",
                         cursor:"pointer", fontFamily:"inherit",
@@ -287,13 +293,13 @@ export default function NoteEditor() {
               </div>
             )}
             {aiSuggestions.connections.length === 0 && aiSuggestions.tags.length === 0 && (
-              <div style={{ fontSize:12, color:"var(--text-faint)", padding:"4px 0" }}>
-                {t.aiNoSuggestions || "No suggestions found — try adding more content."}
+              <div style={{ fontSize:13, color:"var(--text-faint)", padding:"20px 0", textAlign:"center" }}>
+                {t.aiNoSuggestions}
               </div>
             )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

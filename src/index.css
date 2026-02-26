@@ -31,13 +31,13 @@
   --bg-card: #1C1917;
   --bg-input: #292524;
   --bg-surface: #1C1917;
-  --border: #3F3C3A;
-  --border-light: #292524;
-  --border-dashed: #57534E;
-  --text-primary: #E7E5E4;
-  --text-secondary: #A8A29E;
-  --text-muted: #78716C;
-  --text-faint: #57534E;
+  --border: #57534E;
+  --border-light: #3F3C3A;
+  --border-dashed: #78716C;
+  --text-primary: #F5F5F4;
+  --text-secondary: #D6D3D1;
+  --text-muted: #A8A29E;
+  --text-faint: #78716C;
   --shadow: rgba(0,0,0,.4);
 }
 
