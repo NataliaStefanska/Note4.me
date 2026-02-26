@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { daysSince } from "../constants/data";
 import { HUB_COLORS } from "../constants/data";
+import { textPreview } from "../utils/helpers";
 
-export default function ForceGraph({ notes, spaceColor, onOpenNote }) {
+export default function ForceGraph({ notes, allNotes, spaceColor, onOpenNote, showOrphans }) {
   const svgRef = useRef();
   const nodes = useRef([]);
   const links = useRef([]);
@@ -11,6 +12,20 @@ export default function ForceGraph({ notes, spaceColor, onOpenNote }) {
   const clickStart = useRef(null);
   const [, redraw] = useState(0);
   const [hov, setHov] = useState(null);
+
+  // Compute orphan set (notes with no tags and no linkedNotes linking to/from them)
+  const orphanIds = useRef(new Set());
+  useEffect(() => {
+    const all = allNotes || notes;
+    const set = new Set();
+    notes.forEach(n => {
+      const hasLinks = (n.linkedNotes || []).length > 0;
+      const hasBacklinks = all.some(other => other.id !== n.id && (other.linkedNotes || []).includes(n.id));
+      const hasTags = n.tags.length > 0;
+      if (!hasLinks && !hasBacklinks && !hasTags) set.add(n.id);
+    });
+    orphanIds.current = set;
+  }, [notes, allNotes]);
 
   useEffect(() => {
     const W = svgRef.current ? svgRef.current.clientWidth : 720;
@@ -128,6 +143,9 @@ export default function ForceGraph({ notes, spaceColor, onOpenNote }) {
   const hovLinks=hov ? links.current.filter(l=>l.s===hov||l.t===hov) : [];
   const conn=new Set(hovLinks.flatMap(l=>[l.s,l.t]));
 
+  // Find hovered note node for preview
+  const hovNode = hov ? nodes.current.find(n => n.id === hov && n.kind === "note") : null;
+
   return (
     <svg ref={svgRef} width="100%" height="100%" style={{ display:"block" }}>
       <defs>
@@ -140,6 +158,7 @@ export default function ForceGraph({ notes, spaceColor, onOpenNote }) {
         </filter>
       </defs>
       <rect width="100%" height="100%" fill="url(#gbg)"/>
+      {/* Links */}
       {links.current.map((l,i) => {
         const a=nodes.current.find(n=>n.id===l.s), b=nodes.current.find(n=>n.id===l.t);
         if (!a||!b) return null;
@@ -153,6 +172,7 @@ export default function ForceGraph({ notes, spaceColor, onOpenNote }) {
           strokeDasharray={isNoteLink?undefined:"none"}
           style={{ transition:"stroke .15s" }}/>;
       })}
+      {/* Tag nodes */}
       {nodes.current.filter(n=>n.kind==="tag").map(node => {
         const h=hov===node.id, cd=conn.has(node.id), dim=hov&&!h&&!cd;
         const R=18+notes.filter(n=>n.tags.includes(node.tag)).length*4;
@@ -167,19 +187,27 @@ export default function ForceGraph({ notes, spaceColor, onOpenNote }) {
           </g>
         );
       })}
+      {/* Note nodes */}
       {nodes.current.filter(n=>n.kind==="note").map(node => {
         const h=hov===node.id, cd=conn.has(node.id), dim=hov&&!h&&!cd;
         const stale=daysSince(node.note.lastOpened)>=30;
+        const isOrphan = orphanIds.current.has(node.id);
         const R=h?11:7;
         const tn=nodes.current.find(n=>n.kind==="tag"&&n.tag===node.note.tags[0]);
         const nc=tn?tn.color:spaceColor;
-        const title=node.note.title||"Bez tytu\u0142u";
+        const title=node.note.title||"Bez tytułu";
+        // Orphan styling: dashed ring
+        const orphanVisible = showOrphans && isOrphan;
         return (
           <g key={node.id} style={{ cursor:"grab" }}
             onMouseEnter={()=>setHov(node.id)} onMouseLeave={()=>setHov(null)}
             onMouseDown={e=>onDown(e,node.id)} onMouseUp={e=>onUp(e,node)}
             onTouchStart={e=>onDown(e,node.id)} onTouchEnd={e=>onUp(e,node)}>
             {h && <circle cx={node.x} cy={node.y} r={R+8} fill={nc+"25"} filter="url(#glow)"/>}
+            {orphanVisible && (
+              <circle cx={node.x} cy={node.y} r={R+6} fill="none"
+                stroke="#F59E0B" strokeWidth="1.5" strokeDasharray="4 3" opacity=".7"/>
+            )}
             <circle cx={node.x} cy={node.y} r={R} fill={dim?"#232120":nc} style={{ transition:"r .12s,fill .15s" }}/>
             {stale&&!dim && <circle cx={node.x+R} cy={node.y-R} r="3.5" fill="#F59E0B"/>}
             <text x={node.x} y={node.y+R+12} textAnchor="middle"
@@ -190,6 +218,54 @@ export default function ForceGraph({ notes, spaceColor, onOpenNote }) {
           </g>
         );
       })}
+      {/* Hover preview tooltip */}
+      {hovNode && (() => {
+        const note = hovNode.note;
+        const preview = textPreview(note.content, 120);
+        const boxW = 220;
+        const boxH = 80 + (note.tags.length > 0 ? 18 : 0) + (preview ? 16 : 0);
+        const svgW = svgRef.current ? svgRef.current.clientWidth : 720;
+        // Position: above the node, flip if too close to top
+        let tx = hovNode.x - boxW / 2;
+        let ty = hovNode.y - boxH - 22;
+        if (tx < 10) tx = 10;
+        if (tx + boxW > svgW - 10) tx = svgW - boxW - 10;
+        if (ty < 10) ty = hovNode.y + 24;
+        return (
+          <foreignObject x={tx} y={ty} width={boxW} height={boxH + 10} style={{ pointerEvents:"none", overflow:"visible" }}>
+            <div xmlns="http://www.w3.org/1999/xhtml" style={{
+              background:"#1C1917", border:"1px solid #3F3C3A", borderRadius:8, padding:"10px 12px",
+              boxShadow:"0 4px 20px rgba(0,0,0,.5)", pointerEvents:"none",
+            }}>
+              <div style={{ fontSize:12, fontWeight:600, color:"#E7E5E4", marginBottom:4, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                {note.title || "Bez tytułu"}
+              </div>
+              {note.intent && (
+                <div style={{ fontSize:10, color:"#78716C", fontStyle:"italic", marginBottom:3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                  → {note.intent}
+                </div>
+              )}
+              {preview && (
+                <div style={{ fontSize:10, color:"#A8A29E", lineHeight:1.4, marginBottom:4, overflow:"hidden", display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical" }}>
+                  {preview}
+                </div>
+              )}
+              {note.tags.length > 0 && (
+                <div style={{ display:"flex", gap:3, flexWrap:"wrap" }}>
+                  {note.tags.slice(0, 5).map(tag => (
+                    <span key={tag} style={{ fontSize:9, padding:"1px 5px", borderRadius:6, background:"#292524", color:"#A8A29E" }}>#{tag}</span>
+                  ))}
+                </div>
+              )}
+              {(note.linkedNotes||[]).length > 0 && (
+                <div style={{ fontSize:9, color:"#57534E", marginTop:3 }}>
+                  🔗 {note.linkedNotes.length} link{note.linkedNotes.length > 1 ? "s" : ""}
+                </div>
+              )}
+            </div>
+          </foreignObject>
+        );
+      })()}
     </svg>
   );
 }

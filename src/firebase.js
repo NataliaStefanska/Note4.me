@@ -1,6 +1,9 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
-import { getFirestore, doc, setDoc, getDoc } from "firebase/firestore";
+import {
+  getFirestore, doc, setDoc, getDoc, deleteDoc,
+  collection, getDocs, writeBatch, enableIndexedDbPersistence,
+} from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDTekf1c-2NqtNyyuIpmHVK6OvLAl6536Q",
@@ -15,6 +18,15 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+
+// Enable offline persistence — cached in IndexedDB
+enableIndexedDbPersistence(db).catch((err) => {
+  if (err.code === "failed-precondition") {
+    console.warn("Firestore persistence failed: multiple tabs open");
+  } else if (err.code === "unimplemented") {
+    console.warn("Firestore persistence not supported in this browser");
+  }
+});
 
 const googleProvider = new GoogleAuthProvider();
 
@@ -31,13 +43,186 @@ export function onAuth(callback) {
   return onAuthStateChanged(auth, callback);
 }
 
-// ─── Firestore helpers ──────────────────────────────────────────────────────
+// ─── Subcollection-based data model (v2) ────────────────────────────────────
+// users/{uid}                  → { lang, activeSpace, schemaVersion: 2 }
+// users/{uid}/spaces/{spaceId} → { name, emoji, color, order }
+// users/{uid}/notes/{noteId}   → { title, content, tags, linkedNotes, tasks, intent, updatedAt, lastOpened, archived, spaceId }
+// users/{uid}/tasks/{taskId}   → { text, done, intent, createdAt, dueDate, spaceId }
 
-export async function saveUserData(uid, data) {
-  await setDoc(doc(db, "users", uid), data, { merge: true });
+const SCHEMA_VERSION = 2;
+
+// ─── Load all data (with auto-migration from v1) ───────────────────────────
+
+export async function loadAllData(uid) {
+  const userRef = doc(db, "users", uid);
+  const userSnap = await getDoc(userRef);
+  const userData = userSnap.exists() ? userSnap.data() : null;
+
+  // Check if migration needed (old schema — no schemaVersion field)
+  if (userData && !userData.schemaVersion) {
+    return await migrateToSubcollections(uid, userData);
+  }
+
+  if (!userData) {
+    return null; // New user
+  }
+
+  // Load from subcollections
+  const [spacesSnap, notesSnap, tasksSnap] = await Promise.all([
+    getDocs(collection(db, "users", uid, "spaces")),
+    getDocs(collection(db, "users", uid, "notes")),
+    getDocs(collection(db, "users", uid, "tasks")),
+  ]);
+
+  const spaces = [];
+  spacesSnap.forEach(d => spaces.push({ id: d.id, ...d.data() }));
+  spaces.sort((a, b) => (a.order || 0) - (b.order || 0));
+
+  const allNotes = {};
+  notesSnap.forEach(d => {
+    const note = { id: d.id, ...d.data() };
+    const sid = note.spaceId || "s1";
+    delete note.spaceId;
+    if (!allNotes[sid]) allNotes[sid] = [];
+    allNotes[sid].push(note);
+  });
+
+  const standaloneTasks = {};
+  tasksSnap.forEach(d => {
+    const task = { id: d.id, ...d.data() };
+    const sid = task.spaceId || "s1";
+    delete task.spaceId;
+    if (!standaloneTasks[sid]) standaloneTasks[sid] = [];
+    standaloneTasks[sid].push(task);
+  });
+
+  return {
+    lang: userData.lang || "pl",
+    activeSpace: userData.activeSpace || "s1",
+    spaces: spaces.length > 0 ? spaces : null,
+    allNotes: Object.keys(allNotes).length > 0 ? allNotes : null,
+    standaloneTasks: Object.keys(standaloneTasks).length > 0 ? standaloneTasks : null,
+  };
 }
 
-export async function loadUserData(uid) {
-  const snap = await getDoc(doc(db, "users", uid));
-  return snap.exists() ? snap.data() : null;
+// ─── Migration from v1 single-doc to v2 subcollections ─────────────────────
+
+async function migrateToSubcollections(uid, oldData) {
+  const batch = writeBatch(db);
+
+  // User preferences
+  batch.set(doc(db, "users", uid), {
+    lang: oldData.lang || "pl",
+    activeSpace: oldData.activeSpace || "s1",
+    schemaVersion: SCHEMA_VERSION,
+  });
+
+  // Spaces
+  if (oldData.spaces) {
+    oldData.spaces.forEach((sp, i) => {
+      batch.set(doc(db, "users", uid, "spaces", sp.id), {
+        name: sp.name, emoji: sp.emoji, color: sp.color, order: i,
+      });
+    });
+  }
+
+  // Notes (grouped by space)
+  const allNotes = oldData.allNotes || {};
+  for (const [spaceId, notes] of Object.entries(allNotes)) {
+    if (!Array.isArray(notes)) continue;
+    for (const note of notes) {
+      batch.set(doc(db, "users", uid, "notes", note.id), {
+        title: note.title || "", content: note.content || "",
+        tags: note.tags || [], linkedNotes: note.linkedNotes || [],
+        tasks: note.tasks || [], intent: note.intent || "",
+        updatedAt: note.updatedAt || "", lastOpened: note.lastOpened || "",
+        archived: note.archived || false, spaceId,
+      });
+    }
+  }
+
+  // Standalone tasks (grouped by space)
+  const standaloneTasks = oldData.standaloneTasks || {};
+  for (const [spaceId, tasks] of Object.entries(standaloneTasks)) {
+    if (!Array.isArray(tasks)) continue;
+    for (const task of tasks) {
+      batch.set(doc(db, "users", uid, "tasks", task.id), {
+        text: task.text || "", done: task.done || false,
+        intent: task.intent || "", createdAt: task.createdAt || "",
+        dueDate: task.dueDate || "", spaceId,
+      });
+    }
+  }
+
+  await batch.commit();
+
+  return {
+    lang: oldData.lang,
+    activeSpace: oldData.activeSpace,
+    spaces: oldData.spaces,
+    allNotes,
+    standaloneTasks,
+  };
+}
+
+// ─── Incremental save functions ─────────────────────────────────────────────
+
+export async function saveUserPrefs(uid, prefs) {
+  await setDoc(doc(db, "users", uid), { ...prefs, schemaVersion: SCHEMA_VERSION }, { merge: true });
+}
+
+export async function saveSpace(uid, space) {
+  const { id, ...data } = space;
+  await setDoc(doc(db, "users", uid, "spaces", id), data, { merge: true });
+}
+
+export async function deleteSpaceFirestore(uid, spaceId) {
+  await deleteDoc(doc(db, "users", uid, "spaces", spaceId));
+}
+
+export async function saveNoteFirestore(uid, note, spaceId) {
+  const { id, ...data } = note;
+  await setDoc(doc(db, "users", uid, "notes", id), { ...data, spaceId }, { merge: true });
+}
+
+export async function deleteNoteFirestore(uid, noteId) {
+  await deleteDoc(doc(db, "users", uid, "notes", noteId));
+}
+
+export async function saveTaskFirestore(uid, task, spaceId) {
+  const { id, ...data } = task;
+  await setDoc(doc(db, "users", uid, "tasks", id), { ...data, spaceId }, { merge: true });
+}
+
+export async function deleteTaskFirestore(uid, taskId) {
+  await deleteDoc(doc(db, "users", uid, "tasks", taskId));
+}
+
+// ─── Batch saves (for reordering, bulk ops) ─────────────────────────────────
+
+export async function saveAllSpaces(uid, spaces) {
+  const batch = writeBatch(db);
+  spaces.forEach((space, i) => {
+    const { id, ...data } = space;
+    batch.set(doc(db, "users", uid, "spaces", id), { ...data, order: i });
+  });
+  await batch.commit();
+}
+
+export async function saveAllNotes(uid, notes, spaceId) {
+  const batch = writeBatch(db);
+  notes.forEach(note => {
+    const { id, ...data } = note;
+    batch.set(doc(db, "users", uid, "notes", id), { ...data, spaceId }, { merge: true });
+  });
+  await batch.commit();
+}
+
+export async function saveAllTasks(uid, tasks, spaceId) {
+  const batch = writeBatch(db);
+  tasks.forEach(task => {
+    const { id, ...data } = task;
+    batch.set(doc(db, "users", uid, "tasks", id), { ...data, spaceId }, { merge: true });
+  });
+  await batch.commit();
 }

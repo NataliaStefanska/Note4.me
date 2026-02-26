@@ -1,9 +1,14 @@
-import { createContext, useContext, useState, useRef, useEffect, useCallback } from "react";
-import { loginWithGoogle, logout, onAuth, saveUserData, loadUserData } from "../firebase";
+import { createContext, useContext, useState, useRef, useEffect, useCallback, useMemo } from "react";
+import {
+  loginWithGoogle, logout, onAuth, loadAllData,
+  saveUserPrefs, deleteNoteFirestore,
+  saveAllSpaces, saveAllNotes, saveAllTasks,
+} from "../firebase";
 import { TODAY, INITIAL_SPACES, INITIAL_NOTES, daysSince } from "../constants/data";
 import { T } from "../i18n/translations";
 import { textPreview } from "../utils/helpers";
 import { initEmbedder, indexNotes, vectorSearch as vsearch, isEmbedderReady } from "../utils/vectorSearch";
+import Fuse from "fuse.js";
 
 const AppContext = createContext(null);
 
@@ -38,6 +43,7 @@ export function AppProvider({ children }) {
   const [showArchived,setShowArchived]= useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
   const [syncStatus,  setSyncStatus]  = useState("idle");
+  const [isOnline,    setIsOnline]    = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
   const [showSaveToast, setShowSaveToast] = useState(false);
   const [linkSearch, setLinkSearch] = useState(null);
   const [autoSaveStatus, setAutoSaveStatus] = useState(null);
@@ -47,21 +53,32 @@ export function AppProvider({ children }) {
 
   const titleRef = useRef();
   const editorRef = useRef(null);
-  const saveTimer = useRef(null);
   const saveToastTimer = useRef(null);
   const autoSaveTimer = useRef(null);
   const autoSaveStatusTimer = useRef(null);
 
   const t = T[lang] || T.pl;
 
-  // Firebase Auth listener
+  // Online/offline detection
+  useEffect(() => {
+    const goOnline = () => setIsOnline(true);
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener("online", goOnline);
+    window.addEventListener("offline", goOffline);
+    return () => {
+      window.removeEventListener("online", goOnline);
+      window.removeEventListener("offline", goOffline);
+    };
+  }, []);
+
+  // Firebase Auth listener — loads from subcollections (auto-migrates from v1)
   useEffect(() => {
     const unsub = onAuth(async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
         setSyncStatus("loading");
         try {
-          const data = await loadUserData(firebaseUser.uid);
+          const data = await loadAllData(firebaseUser.uid);
           if (data) {
             if (data.spaces) setSpaces(data.spaces);
             if (data.activeSpace) setActiveSpace(data.activeSpace);
@@ -85,20 +102,75 @@ export function AppProvider({ children }) {
     return unsub;
   }, []);
 
-  // Debounced Firestore save
-  const syncToFirestore = useCallback((data) => {
-    if (!user) return;
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(async () => {
+  // Debounced incremental Firestore sync (subcollections)
+  const syncTimer = useRef(null);
+  const prevSpaces = useRef(null);
+  const prevAllNotes = useRef(null);
+  const prevStandaloneTasks = useRef(null);
+  const prevLang = useRef(null);
+  const prevActiveSpace = useRef(null);
+
+  const syncToFirestore = useCallback(() => {
+    if (!user || authLoading) return;
+    if (syncTimer.current) clearTimeout(syncTimer.current);
+    syncTimer.current = setTimeout(async () => {
       setSyncStatus("saving");
       try {
-        await saveUserData(user.uid, data);
+        const promises = [];
+
+        // Sync user preferences if lang or activeSpace changed
+        if (lang !== prevLang.current || activeSpace !== prevActiveSpace.current) {
+          promises.push(saveUserPrefs(user.uid, { lang, activeSpace }));
+          prevLang.current = lang;
+          prevActiveSpace.current = activeSpace;
+        }
+
+        // Sync spaces if changed
+        if (spaces !== prevSpaces.current) {
+          promises.push(saveAllSpaces(user.uid, spaces));
+          prevSpaces.current = spaces;
+        }
+
+        // Sync notes if changed
+        if (allNotes !== prevAllNotes.current) {
+          for (const [spaceId, notes] of Object.entries(allNotes)) {
+            const prevNotes = prevAllNotes.current ? prevAllNotes.current[spaceId] : null;
+            if (notes !== prevNotes) {
+              promises.push(saveAllNotes(user.uid, notes, spaceId));
+            }
+          }
+          // Detect deleted notes (spaces that existed before but not now)
+          if (prevAllNotes.current) {
+            for (const spaceId of Object.keys(prevAllNotes.current)) {
+              if (!allNotes[spaceId]) {
+                const oldNotes = prevAllNotes.current[spaceId] || [];
+                oldNotes.forEach(n => promises.push(deleteNoteFirestore(user.uid, n.id)));
+              }
+            }
+          }
+          prevAllNotes.current = allNotes;
+        }
+
+        // Sync standalone tasks if changed
+        if (standaloneTasks !== prevStandaloneTasks.current) {
+          for (const [spaceId, tasks] of Object.entries(standaloneTasks)) {
+            const prevTasks = prevStandaloneTasks.current ? prevStandaloneTasks.current[spaceId] : null;
+            if (tasks !== prevTasks) {
+              promises.push(saveAllTasks(user.uid, tasks, spaceId));
+            }
+          }
+          prevStandaloneTasks.current = standaloneTasks;
+        }
+
+        if (promises.length > 0) {
+          await Promise.all(promises);
+        }
         setSyncStatus("synced");
       } catch {
         setSyncStatus("error");
       }
     }, 1500);
-  }, [user]);
+  }, [user, authLoading, lang, activeSpace, spaces, allNotes, standaloneTasks]);
 
   useEffect(() => { try { localStorage.setItem("noteio_lang", lang); } catch { /* localStorage unavailable */ } }, [lang]);
   useEffect(() => {
@@ -108,7 +180,7 @@ export function AppProvider({ children }) {
   function setTheme(t) { setThemeState(t); }
   useEffect(() => {
     if (!user || authLoading) return;
-    syncToFirestore({ spaces, activeSpace, allNotes, standaloneTasks, lang });
+    syncToFirestore();
   }, [spaces, activeSpace, allNotes, standaloneTasks, lang, user, authLoading, syncToFirestore]);
 
   const notes  = allNotes[activeSpace] || [];
@@ -146,23 +218,59 @@ export function AppProvider({ children }) {
     return () => { if (vectorSearchTimer.current) clearTimeout(vectorSearchTimer.current); };
   }, [search, notes, searchMode, embedderStatus]);
 
-  const textFiltered = notes
-    .filter(n => {
-      const ma = showArchived ? !!n.archived : !n.archived;
-      const mt = filterTag ? n.tags.includes(filterTag) : true;
-      const q = search.toLowerCase();
-      const ms = search ? (
-        n.title.toLowerCase().includes(q) ||
-        textPreview(n.content,99999).toLowerCase().includes(q) ||
-        n.tags.some(tg => tg.toLowerCase().includes(q)) ||
-        n.tasks.some(tk => tk.text.toLowerCase().includes(q)) ||
-        (n.intent || '').toLowerCase().includes(q)
-      ) : true;
-      const mf = dateFrom ? n.updatedAt>=dateFrom : true;
-      const mtd= dateTo   ? n.updatedAt<=dateTo   : true;
-      return ma&&mt&&ms&&mf&&mtd;
-    })
-    .sort((a,b)=>sortOrder==="desc"?b.updatedAt.localeCompare(a.updatedAt):a.updatedAt.localeCompare(b.updatedAt));
+  // Fuse.js index for fuzzy text search
+  const fuseIndex = useMemo(() => {
+    const prepared = notes.map(n => ({
+      ...n,
+      _contentText: textPreview(n.content, 99999),
+      _tagsJoined: n.tags.join(" "),
+      _tasksJoined: n.tasks.map(tk => tk.text).join(" "),
+    }));
+    return new Fuse(prepared, {
+      keys: [
+        { name: "title", weight: 2 },
+        { name: "intent", weight: 1.5 },
+        { name: "_contentText", weight: 1 },
+        { name: "_tagsJoined", weight: 1.5 },
+        { name: "_tasksJoined", weight: 0.8 },
+      ],
+      threshold: 0.35,
+      ignoreLocation: true,
+      includeMatches: true,
+    });
+  }, [notes]);
+
+  const textFiltered = (() => {
+    let pool;
+    if (search.trim()) {
+      const fuseResults = fuseIndex.search(search);
+      const matchedIds = new Set(fuseResults.map(r => r.item.id));
+      pool = fuseResults.map(r => notes.find(n => n.id === r.item.id)).filter(Boolean);
+      // Also include exact substring matches that fuse might miss
+      notes.forEach(n => {
+        if (matchedIds.has(n.id)) return;
+        const q = search.toLowerCase();
+        if (
+          n.title.toLowerCase().includes(q) ||
+          textPreview(n.content,99999).toLowerCase().includes(q) ||
+          n.tags.some(tg => tg.toLowerCase().includes(q)) ||
+          n.tasks.some(tk => tk.text.toLowerCase().includes(q)) ||
+          (n.intent || '').toLowerCase().includes(q)
+        ) pool.push(n);
+      });
+    } else {
+      pool = [...notes];
+    }
+    return pool
+      .filter(n => {
+        const ma = showArchived ? !!n.archived : !n.archived;
+        const mt = filterTag ? n.tags.includes(filterTag) : true;
+        const mf = dateFrom ? n.updatedAt>=dateFrom : true;
+        const mtd= dateTo   ? n.updatedAt<=dateTo   : true;
+        return ma&&mt&&mf&&mtd;
+      })
+      .sort((a,b)=>sortOrder==="desc"?b.updatedAt.localeCompare(a.updatedAt):a.updatedAt.localeCompare(b.updatedAt));
+  })();
 
   const filtered = (searchMode === "vector" && search.trim() && semanticResults)
     ? semanticResults.filter(n => {
@@ -326,6 +434,8 @@ export function AppProvider({ children }) {
     setAllNotes(p=>({...p,[activeSpace]:(p[activeSpace]||[]).filter(n=>n.id!==noteId)}));
     if (active && active.id===noteId) { setActive(null); }
     setShowDeleteConfirm(null);
+    // Also delete from Firestore subcollection directly
+    if (user) deleteNoteFirestore(user.uid, noteId).catch(() => {});
   }
   function archiveNote(noteId) {
     setAllNotes(p=>({...p,[activeSpace]:(p[activeSpace]||[]).map(n=>n.id===noteId?{...n,archived:true}:n)}));
@@ -352,7 +462,7 @@ export function AppProvider({ children }) {
     showSpaceMgr, setShowSpaceMgr, showDrop, setShowDrop, sortOrder, setSortOrder,
     dateFrom, setDateFrom, dateTo, setDateTo, showDate, setShowDate,
     showDrawer, setShowDrawer, showArchived, setShowArchived,
-    showDeleteConfirm, setShowDeleteConfirm, syncStatus, showSaveToast,
+    showDeleteConfirm, setShowDeleteConfirm, syncStatus, showSaveToast, isOnline,
     linkSearch, setLinkSearch, autoSaveStatus, setAutoSaveStatus,
     searchMode, setSearchMode, embedderStatus,
     // refs
