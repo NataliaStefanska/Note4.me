@@ -21,7 +21,7 @@ import SettingsView from "./views/SettingsView";
 
 export default function App() {
   const {
-    user, authLoading, t, space, spaces, setSpaces,
+    user, authLoading, t, space, spaces, setSpaces, active,
     showIntent, showTask, setShowTask, showSpaceMgr, setShowSpaceMgr,
     showDeleteConfirm, setShowDeleteConfirm, showSaveToast,
     showDrawer, setShowDrawer, filterTag,
@@ -143,7 +143,7 @@ export default function App() {
 
         <Routes>
           <Route path="/" element={<NotesList />} />
-          <Route path="/editor" element={<NoteEditor />} />
+          <Route path="/editor" element={<NoteEditor key={active?.id} />} />
           <Route path="/tasks" element={<TasksPage />} />
           <Route path="/graph" element={<GraphView />} />
           <Route path="/settings" element={<SettingsView />} />

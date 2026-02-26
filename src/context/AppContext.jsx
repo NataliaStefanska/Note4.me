@@ -56,7 +56,15 @@ export function AppProvider({ children }) {
   const autoSaveTimer = useRef(null);
   const autoSaveStatusTimer = useRef(null);
 
-  const t = T[lang] || T.pl;
+  // B1 fix: keep refs to latest state so saveNote/triggerAutoSave always read fresh values
+  const activeRef = useRef(active);
+  const activeSpaceRef = useRef(activeSpace);
+  const allNotesRef = useRef(allNotes);
+  useEffect(() => { activeRef.current = active; });
+  useEffect(() => { activeSpaceRef.current = activeSpace; });
+  useEffect(() => { allNotesRef.current = allNotes; });
+
+  const t = useMemo(() => T[lang] || T.pl, [lang]);
 
   // Online/offline detection
   useEffect(() => {
@@ -185,18 +193,23 @@ export function AppProvider({ children }) {
     syncToFirestore();
   }, [spaces, activeSpace, allNotes, standaloneTasks, lang, user, authLoading, syncToFirestore]);
 
-  const notes  = allNotes[activeSpace] || [];
-  const space  = spaces.find(sp => sp.id===activeSpace) || spaces[0];
-  const allTags= [...new Set([...notes.flatMap(n=>n.tags), ...(active ? active.tags : [])])];
-  const staleN = notes.filter(n=>!n.archived&&daysSince(n.lastOpened)>=30).length;
-  const archivedN = notes.filter(n=>n.archived).length;
+  // P1 fix: memoize derived values to avoid recomputation on unrelated state changes
+  const notes  = useMemo(() => allNotes[activeSpace] || [], [allNotes, activeSpace]);
+  const space  = useMemo(() => spaces.find(sp => sp.id===activeSpace) || spaces[0], [spaces, activeSpace]);
+  const allTags= useMemo(() => [...new Set([...notes.flatMap(n=>n.tags), ...(active ? active.tags : [])])], [notes, active]);
+  const staleN = useMemo(() => notes.filter(n=>!n.archived&&daysSince(n.lastOpened)>=30).length, [notes]);
+  const archivedN = useMemo(() => notes.filter(n=>n.archived).length, [notes]);
 
   // Vector search: lazy init embedder in background on first search
   const embedderInitAttempted = useRef(false);
   useEffect(() => {
     if (!search.trim() || embedderInitAttempted.current) return;
     embedderInitAttempted.current = true;
-    if (isEmbedderReady()) { setEmbedderStatus("ready"); return; }
+    if (isEmbedderReady()) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- sync check on external system
+      setEmbedderStatus("ready");
+      return;
+    }
     setEmbedderStatus("loading");
     initEmbedder().then(() => setEmbedderStatus("ready")).catch(() => setEmbedderStatus("error"));
   }, [search]);
@@ -230,13 +243,13 @@ export function AppProvider({ children }) {
     });
   }, [notes]);
 
-  const textFiltered = (() => {
+  // P1 fix: memoize textFiltered
+  const textFiltered = useMemo(() => {
     let pool;
     if (search.trim()) {
       const fuseResults = fuseIndex.search(search);
       const matchedIds = new Set(fuseResults.map(r => r.item.id));
       pool = fuseResults.map(r => notes.find(n => n.id === r.item.id)).filter(Boolean);
-      // Also include exact substring matches that fuse might miss
       notes.forEach(n => {
         if (matchedIds.has(n.id)) return;
         const q = search.toLowerCase();
@@ -260,13 +273,13 @@ export function AppProvider({ children }) {
         return ma&&mt&&mf&&mtd;
       })
       .sort((a,b)=>sortOrder==="desc"?b.updatedAt.localeCompare(a.updatedAt):a.updatedAt.localeCompare(b.updatedAt));
-  })();
+  }, [search, fuseIndex, notes, showArchived, filterTag, dateFrom, dateTo, sortOrder]);
 
-  // Auto-fallback: if text search finds 0 and semantic is ready, try semantic
   const useSemanticFallback = search.trim().length >= 3 && textFiltered.length === 0 && embedderStatus === "ready";
 
   // Debounced semantic search when fallback is needed
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- cleanup when search conditions change
     if (!useSemanticFallback || !search.trim()) { setSemanticResults(null); return; }
     if (vectorSearchTimer.current) clearTimeout(vectorSearchTimer.current);
     vectorSearchTimer.current = setTimeout(async () => {
@@ -274,9 +287,10 @@ export function AppProvider({ children }) {
       setSemanticResults(results);
     }, 400);
     return () => { if (vectorSearchTimer.current) clearTimeout(vectorSearchTimer.current); };
-  }, [search, notes, useSemanticFallback]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [search, notes, useSemanticFallback]);
 
-  const filtered = (useSemanticFallback && semanticResults)
+  // P1 fix: memoize filtered
+  const filtered = useMemo(() => (useSemanticFallback && semanticResults)
     ? semanticResults.filter(n => {
         const ma = showArchived ? !!n.archived : !n.archived;
         const mt = filterTag ? n.tags.includes(filterTag) : true;
@@ -284,7 +298,7 @@ export function AppProvider({ children }) {
         const mtd= dateTo   ? n.updatedAt<=dateTo   : true;
         return ma&&mt&&mf&&mtd;
       })
-    : textFiltered;
+    : textFiltered, [useSemanticFallback, semanticResults, textFiltered, showArchived, filterTag, dateFrom, dateTo]);
 
   function switchSpace(id) { setActiveSpace(id); setActive(null); setFilterTag(null); setSearch(""); setShowDrop(false); setShowArchived(false); }
   function createNote()   { setShowIntent(true); }
@@ -321,37 +335,37 @@ export function AppProvider({ children }) {
     setAllNotes(p=>({...p,[activeSpace]:(p[activeSpace]||[]).map(n=>n.id===opened.id?{...n,lastOpened:opened.lastOpened}:n)}));
   }
 
-  function parseLinkedNotes(html) {
-    const text = html.replace(/<[^>]*>/g, '');
+  // B1 fix: saveNote reads from refs to avoid stale closure in setTimeout
+  const saveNoteImpl = useCallback((silent) => {
+    const currentActive = activeRef.current;
+    if (!currentActive) return;
+    const content = editorRef.current ? editorRef.current.getHTML() : currentActive.content;
+    const text = content.replace(/<[^>]*>/g, '');
     const matches = [...text.matchAll(/\[\[([^\]]+)\]\]/g)].map(m => m[1]);
-    const spaceNotes = allNotes[activeSpace] || [];
+    const spaceNotes = allNotesRef.current[activeSpaceRef.current] || [];
     const ids = [];
     matches.forEach(title => {
       const found = spaceNotes.find(n => n.title && n.title.toLowerCase() === title.toLowerCase());
-      if (found && found.id !== (active && active.id)) ids.push(found.id);
+      if (found && found.id !== currentActive.id) ids.push(found.id);
     });
-    return [...new Set(ids)];
-  }
-
-  function saveNote(silent) {
-    if(!active) return;
-    const content = editorRef.current ? editorRef.current.getHTML() : active.content;
-    const linkedNotes = parseLinkedNotes(content);
-    const updated = {...active, content, linkedNotes, updatedAt:getToday().toISOString().split("T")[0]};
-    setAllNotes(p=>({...p,[activeSpace]:(p[activeSpace]||[]).map(n=>n.id===updated.id?{...updated}:n)}));
+    const linkedNotes = [...new Set(ids)];
+    const updated = {...currentActive, content, linkedNotes, updatedAt:getToday().toISOString().split("T")[0]};
+    setAllNotes(p=>({...p,[activeSpaceRef.current]:(p[activeSpaceRef.current]||[]).map(n=>n.id===updated.id?{...updated}:n)}));
     setActive(updated);
     if (!silent) {
       setShowSaveToast(true);
       if (saveToastTimer.current) clearTimeout(saveToastTimer.current);
       saveToastTimer.current = setTimeout(() => setShowSaveToast(false), 1500);
     }
-  }
+  }, []);
+
+  function saveNote(silent) { saveNoteImpl(silent); }
 
   function triggerAutoSave() {
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     setAutoSaveStatus("saving");
     autoSaveTimer.current = setTimeout(() => {
-      saveNote(true);
+      saveNoteImpl(true);
       setAutoSaveStatus("saved");
       if (autoSaveStatusTimer.current) clearTimeout(autoSaveStatusTimer.current);
       autoSaveStatusTimer.current = setTimeout(() => setAutoSaveStatus(null), 2000);

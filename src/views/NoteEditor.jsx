@@ -28,18 +28,10 @@ export default function NoteEditor() {
   const [aiSuggestions, setAiSuggestions] = useState(null); // { connections, tags } | null
   const [aiLoading, setAiLoading] = useState(false);
   const [showAiPanel, setShowAiPanel] = useState(false);
-  const [aiNoteId, setAiNoteId] = useState(null); // tracks which note suggestions belong to
 
   useEffect(() => {
     if (!active) navigate("/", { replace: true });
   }, [active, navigate]);
-
-  // Reset AI suggestions when switching notes (inline check, no effect setState)
-  if (active && active.id !== aiNoteId) {
-    setAiNoteId(active.id);
-    if (aiSuggestions) setAiSuggestions(null);
-    if (showAiPanel) setShowAiPanel(false);
-  }
 
   const [aiNotReady, setAiNotReady] = useState(false);
   const fetchAiSuggestions = useCallback(async () => {
@@ -147,9 +139,6 @@ export default function NoteEditor() {
         <div style={{ ...s.toolSec, minWidth:isMobile?"100%":220 }}>
           <div style={s.toolLbl}>{t.edTasks}</div>
           {active.tasks.map(task=>{
-            const today = new Date().toISOString().split("T")[0];
-            const overdue = task.dueDate && !task.done && task.dueDate < today;
-            const dueToday = task.dueDate && task.dueDate === today;
             const isOver = taskDragOverId === task.id;
             return (
             <div key={task.id} draggable

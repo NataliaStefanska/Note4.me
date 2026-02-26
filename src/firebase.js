@@ -1,31 +1,27 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
 import {
-  getFirestore, doc, setDoc, getDoc, deleteDoc,
-  collection, getDocs, writeBatch, enableIndexedDbPersistence,
+  initializeFirestore, persistentLocalCache, doc, setDoc, getDoc, deleteDoc,
+  collection, getDocs, writeBatch,
 } from "firebase/firestore";
 
+// S3 fix: read config from env vars with hardcoded fallback for backward compatibility
 const firebaseConfig = {
-  apiKey: "AIzaSyDTekf1c-2NqtNyyuIpmHVK6OvLAl6536Q",
-  authDomain: "note4-me.firebaseapp.com",
-  projectId: "note4-me",
-  storageBucket: "note4-me.firebasestorage.app",
-  messagingSenderId: "721213164255",
-  appId: "1:721213164255:web:61d90785d4569ae98a776a",
-  measurementId: "G-SXC6RXJYVG",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyDTekf1c-2NqtNyyuIpmHVK6OvLAl6536Q",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "note4-me.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "note4-me",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "note4-me.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "721213164255",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:721213164255:web:61d90785d4569ae98a776a",
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-SXC6RXJYVG",
 };
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app);
 
-// Enable offline persistence — cached in IndexedDB
-enableIndexedDbPersistence(db).catch((err) => {
-  if (err.code === "failed-precondition") {
-    console.warn("Firestore persistence failed: multiple tabs open");
-  } else if (err.code === "unimplemented") {
-    console.warn("Firestore persistence not supported in this browser");
-  }
+// Fix deprecated API: use initializeFirestore with persistentLocalCache instead of enableIndexedDbPersistence
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache(),
 });
 
 const googleProvider = new GoogleAuthProvider();
