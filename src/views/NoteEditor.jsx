@@ -1,30 +1,64 @@
 import { useNavigate } from "react-router-dom";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useApp } from "../context/AppContext";
 import { useIsMobile } from "../hooks/useIsMobile";
 import { daysSince } from "../constants/data";
 import { contentToHtml } from "../utils/helpers";
 import { s } from "../styles/appStyles";
+import { m } from "../styles/modalStyles";
 import TiptapEditor from "../components/TiptapEditor";
 import LinkAutocomplete from "../components/LinkAutocomplete";
 import TagPicker from "../components/TagPicker";
+import DueDatePicker from "../components/DueDatePicker";
+import { isEmbedderReady } from "../utils/vectorSearch";
+import { suggestConnections, suggestTags } from "../utils/aiSuggestions";
 
 export default function NoteEditor() {
   const {
     t, space, active, setActive, allNotes, activeSpace, linkSearch, setLinkSearch,
     autoSaveStatus, setAutoSaveStatus, showTagPick, setShowTagPick,
     newTask, setNewTask, titleRef, editorRef,
-    saveNote, triggerAutoSave, toggleTask, addTask, setTaskDueDate, reorderTasks, toggleTag, openNote, handleLinkSelect,
+    saveNote, triggerAutoSave, toggleTask, addTask, removeTask, setTaskDueDate, reorderTasks, toggleTag, openNote, handleLinkSelect,
     archiveNote, unarchiveNote, setShowDeleteConfirm,
   } = useApp();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const contentWrapRef = useRef(null);
   const [taskDragOverId, setTaskDragOverId] = useState(null);
+  const [aiSuggestions, setAiSuggestions] = useState(null); // { connections, tags } | null
+  const [aiLoading, setAiLoading] = useState(false);
+  const [showAiPanel, setShowAiPanel] = useState(false);
+  const [aiNoteId, setAiNoteId] = useState(null); // tracks which note suggestions belong to
 
   useEffect(() => {
     if (!active) navigate("/", { replace: true });
   }, [active, navigate]);
+
+  // Reset AI suggestions when switching notes (inline check, no effect setState)
+  if (active && active.id !== aiNoteId) {
+    setAiNoteId(active.id);
+    if (aiSuggestions) setAiSuggestions(null);
+    if (showAiPanel) setShowAiPanel(false);
+  }
+
+  const [aiNotReady, setAiNotReady] = useState(false);
+  const fetchAiSuggestions = useCallback(async () => {
+    if (!active) return;
+    if (!isEmbedderReady()) { setAiNotReady(true); setTimeout(() => setAiNotReady(false), 3000); return; }
+    setAiLoading(true);
+    try {
+      const spNotes = allNotes[activeSpace] || [];
+      const [connections, tags] = await Promise.all([
+        suggestConnections(active, spNotes),
+        suggestTags(active, spNotes),
+      ]);
+      setAiSuggestions({ connections, tags });
+      setShowAiPanel(true);
+    } catch {
+      setAiSuggestions(null);
+    }
+    setAiLoading(false);
+  }, [active, allNotes, activeSpace]);
 
   if (!active) return null;
 
@@ -55,7 +89,7 @@ export default function NoteEditor() {
           <button style={{ ...s.staleBtn, color:"#EF4444", borderColor:"#EF4444" }} onClick={()=>setShowDeleteConfirm(active.id)}>{t.deleteBtn}</button>
         </div>
       )}
-      <div style={{ display:"flex", alignItems:"center", gap:10, padding:"12px 20px", borderBottom:"1px solid #E7E5E4" }}>
+      <div style={{ display:"flex", alignItems:"center", gap:10, padding:"12px 20px", borderBottom:"1px solid var(--border)" }}>
         <button style={s.backBtn} onClick={goBack}>{t.edBack}</button>
         {active.intent && !isMobile && <div style={{ flex:1, fontSize:12, color:"#A8A29E", fontStyle:"italic", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{"\u2192"} {active.intent}</div>}
         <div style={{ display:"flex", gap:6, marginLeft:"auto", alignItems:"center" }}>
@@ -97,7 +131,7 @@ export default function NoteEditor() {
           )}
         </div>
       </div>
-      <div style={{ display:"flex", gap:isMobile?16:28, padding:isMobile?"12px 16px":"14px 40px", borderTop:"1px solid #E7E5E4", flexWrap:"wrap" }}>
+      <div style={{ display:"flex", gap:isMobile?16:28, padding:isMobile?"12px 16px":"14px 40px", borderTop:"1px solid var(--border)", flexWrap:"wrap" }}>
         <div style={s.toolSec}>
           <div style={s.toolLbl}>{t.edTags}</div>
           <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center" }}>
@@ -128,12 +162,9 @@ export default function NoteEditor() {
               <div style={{ ...s.chk, ...(task.done?{background:space.color,borderColor:space.color}:{}) }} onClick={()=>toggleTask(task.id)}>
                 {task.done && <span style={{ color:"#fff", fontSize:10 }}>{"\u2713"}</span>}
               </div>
-              <span style={{ fontSize:13, color:"#44403C", textDecoration:task.done?"line-through":"none", flex:1 }}>{task.text}</span>
-              <input type="date" draggable={false} onMouseDown={e=>e.stopPropagation()} value={task.dueDate||""} onChange={e=>setTaskDueDate(task.id,e.target.value)}
-                style={{ ...s.dateInp, fontSize:10, padding:"2px 4px", minWidth:110,
-                  color: overdue?"#EF4444":dueToday?"#D97706":"#78716C",
-                  borderColor: overdue?"#FECACA":dueToday?"#FDE68A":"#E7E5E4" }}
-                title={t.edDueDate||"Due date"}/>
+              <span style={{ fontSize:13, color:"var(--text-secondary)", textDecoration:task.done?"line-through":"none", flex:1 }}>{task.text}</span>
+              <DueDatePicker value={task.dueDate||""} onChange={v=>setTaskDueDate(task.id,v)} t={t}/>
+              <button onClick={()=>removeTask(task.id)} style={{ background:"transparent", border:"none", color:"var(--text-faint)", cursor:"pointer", padding:4, fontSize:14, lineHeight:1, flexShrink:0 }} title={t.deleteBtn}>{"\u00D7"}</button>
             </div>);
           })}
           <div style={{ display:"flex", gap:6, alignItems:"center", marginTop:2 }}>
@@ -145,7 +176,7 @@ export default function NoteEditor() {
         </div>
       </div>
       {(linked.length > 0 || backlinks.length > 0) && (
-        <div style={{ display:"flex", gap:isMobile?16:28, padding:isMobile?"8px 16px":"8px 40px", borderTop:"1px solid #F5F5F4", flexWrap:"wrap" }}>
+        <div style={{ display:"flex", gap:isMobile?16:28, padding:isMobile?"8px 16px":"8px 40px", borderTop:"1px solid var(--border-light)", flexWrap:"wrap" }}>
           {linked.length > 0 && (
             <div style={s.toolSec}>
               <div style={s.toolLbl}>{t.linkedNotesLabel}</div>
@@ -169,7 +200,7 @@ export default function NoteEditor() {
                 {backlinks.map(n => (
                   <button key={n.id} onClick={()=>openNote(n)} style={{
                     fontSize:12, padding:"4px 10px", borderRadius:6,
-                    background:"#F5F5F4", color:"#57534E", border:"1px solid #E7E5E4",
+                    background:"var(--bg-card)", color:"var(--text-muted)", border:"1px solid var(--border)",
                     cursor:"pointer", fontFamily:"inherit"
                   }}>
                     {n.title || t.listNoTitle}
@@ -178,6 +209,95 @@ export default function NoteEditor() {
               </div>
             </div>
           )}
+        </div>
+      )}
+      {/* AI Suggestions button */}
+      <div style={{ padding:isMobile?"8px 16px":"8px 40px", borderTop:"1px solid var(--border-light)" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+          <button
+            onClick={fetchAiSuggestions}
+            disabled={aiLoading}
+            style={{
+              fontSize:12, padding:"5px 12px", borderRadius:8,
+              background:"var(--bg-card)", color:"var(--text-muted)",
+              border:"1px solid var(--border)",
+              cursor: aiLoading ? "wait" : "pointer", fontFamily:"inherit",
+              display:"flex", alignItems:"center", gap:6,
+              transition: "all .2s",
+            }}
+          >
+            {aiLoading && <span style={{ display:"inline-block", width:12, height:12, border:"2px solid var(--text-faint)", borderTopColor:"transparent", borderRadius:"50%", animation:"spin .6s linear infinite" }}/>}
+            {t.aiSuggest}
+          </button>
+          {aiNotReady && <span style={{ fontSize:11, color:"#F59E0B" }}>{t.aiNotReady}</span>}
+        </div>
+      </div>
+      {/* AI Suggestions modal */}
+      {showAiPanel && aiSuggestions && (
+        <div style={m.overlay} onClick={() => setShowAiPanel(false)}>
+          <div style={{ ...m.box, width:500, maxHeight:"80vh", overflowY:"auto" }} onClick={e => e.stopPropagation()}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+              <div style={m.q}>{t.aiSuggest}</div>
+              <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+                <button onClick={fetchAiSuggestions} disabled={aiLoading}
+                  style={{ fontSize:11, background:"transparent", border:"1px solid var(--border)", borderRadius:6, padding:"4px 10px", color:"var(--text-muted)", cursor:"pointer", fontFamily:"inherit" }}>
+                  {t.aiRefresh}
+                </button>
+                <button onClick={() => setShowAiPanel(false)}
+                  style={{ background:"transparent", border:"none", color:"var(--text-faint)", cursor:"pointer", fontSize:18, lineHeight:1 }}>{"\u00D7"}</button>
+              </div>
+            </div>
+            <div style={m.sub}>{active.title || t.listNoTitle}</div>
+            {/* Connections */}
+            {aiSuggestions.connections.length > 0 && (
+              <div style={{ display:"flex", flexDirection:"column", gap:8, marginTop:8 }}>
+                <div style={{ ...s.toolLbl, display:"flex", alignItems:"center", gap:6 }}>
+                  <span style={{ fontSize:14 }}>{"\u{1F517}"}</span> {t.aiConnections}
+                </div>
+                <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
+                  {aiSuggestions.connections.map(({ note: n, score }) => (
+                    <button key={n.id} onClick={() => { setShowAiPanel(false); openNote(n); }} style={{
+                      display:"flex", alignItems:"center", gap:10, padding:"8px 12px", borderRadius:8,
+                      background:"var(--bg-input)", border:"1px solid var(--border-light)",
+                      cursor:"pointer", fontFamily:"inherit", textAlign:"left",
+                    }}>
+                      <span style={{ fontSize:13, fontWeight:500, color:"var(--text-primary)", flex:1, overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>
+                        {n.title || t.listNoTitle}
+                      </span>
+                      <span style={{ fontSize:10, color:"#8B5CF6", fontWeight:600, flexShrink:0 }}>{Math.round(score*100)}%</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {/* Tags */}
+            {aiSuggestions.tags.length > 0 && (
+              <div style={{ display:"flex", flexDirection:"column", gap:8, marginTop:12 }}>
+                <div style={{ ...s.toolLbl, display:"flex", alignItems:"center", gap:6 }}>
+                  <span style={{ fontSize:14 }}>{"\u{1F3F7}\uFE0F"}</span> {t.aiTags}
+                </div>
+                <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                  {aiSuggestions.tags.map(({ tag, fromNotes }) => (
+                    <button key={tag} onClick={() => { toggleTag(tag); setAiSuggestions(prev => prev ? { ...prev, tags: prev.tags.filter(t => t.tag !== tag) } : prev); }}
+                      style={{
+                        fontSize:12, padding:"6px 14px", borderRadius:20,
+                        background:"linear-gradient(135deg, #10B98122, #0EA5E922)",
+                        color:"#10B981", border:"1px solid #10B98133",
+                        cursor:"pointer", fontFamily:"inherit",
+                      }}
+                      title={fromNotes.slice(0, 3).join(", ")}>
+                      + {tag}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {aiSuggestions.connections.length === 0 && aiSuggestions.tags.length === 0 && (
+              <div style={{ fontSize:13, color:"var(--text-faint)", padding:"20px 0", textAlign:"center" }}>
+                {t.aiNoSuggestions}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

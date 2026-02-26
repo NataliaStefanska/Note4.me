@@ -19,7 +19,7 @@ export default function NotesList() {
     sortOrder, setSortOrder, showDate, setShowDate, dateFrom, setDateFrom,
     dateTo, setDateTo, archivedN, quickCapture, openNote, archiveNote,
     unarchiveNote, setShowDeleteConfirm, reorderNotes,
-    searchMode, setSearchMode, embedderStatus,
+    embedderStatus, useSemanticFallback,
   } = useApp();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
@@ -70,18 +70,6 @@ export default function NotesList() {
         <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
           <div style={{ display:"flex", flex:1, minWidth:140, gap:4, alignItems:"center" }}>
             <input style={{ ...s.searchBox, flex:1 }} placeholder={t.listSearch} value={search} onChange={e=>setSearch(e.target.value)}/>
-            <div style={{ display:"flex", borderRadius:6, overflow:"hidden", border:"1px solid var(--border)", flexShrink:0 }}>
-              <button onClick={()=>setSearchMode("text")}
-                style={{ fontSize:10, padding:"4px 8px", border:"none", cursor:"pointer", fontFamily:"inherit", fontWeight:searchMode==="text"?600:400,
-                  background:searchMode==="text"?space.color:  "var(--bg-input)", color:searchMode==="text"?"#fff":"var(--text-secondary)" }}>
-                {t.searchText}
-              </button>
-              <button onClick={()=>setSearchMode("vector")}
-                style={{ fontSize:10, padding:"4px 8px", border:"none", borderLeft:"1px solid var(--border)", cursor:"pointer", fontFamily:"inherit", fontWeight:searchMode==="vector"?600:400,
-                  background:searchMode==="vector"?space.color:"var(--bg-input)", color:searchMode==="vector"?"#fff":"var(--text-secondary)" }}>
-                {t.searchSemantic}
-              </button>
-            </div>
           </div>
           <button style={{ ...s.ctrlBtn, ...(showArchived?{background:space.color+"18",color:space.color,borderColor:space.color+"44"}:{}) }}
             onClick={()=>setShowArchived(v=>!v)}>
@@ -91,10 +79,16 @@ export default function NotesList() {
           <button style={{ ...s.ctrlBtn, ...(showDate||dateFrom||dateTo?{color:space.color,background:space.color+"15"}:{}) }} onClick={()=>setShowDate(v=>!v)}>{"\u{1F4C5}"}</button>
           {!isMobile && <button style={{ ...s.ctrlBtn, background:space.color, color:"#fff", border:"none" }} onClick={handleQuickCapture}>{t.listNew}</button>}
         </div>
-        {searchMode === "vector" && embedderStatus !== "ready" && (
-          <div style={{ fontSize:11, color:embedderStatus==="error"?"#EF4444":"#A8A29E", display:"flex", alignItems:"center", gap:6 }}>
-            {embedderStatus === "loading" && <span style={{ display:"inline-block", width:12, height:12, border:"2px solid "+space.color, borderTop:"2px solid transparent", borderRadius:"50%", animation:"spin 1s linear infinite" }}/>}
-            {embedderStatus === "loading" ? t.searchLoading : embedderStatus === "error" ? "Error loading model" : ""}
+        {search.trim() && useSemanticFallback && (
+          <div style={{ fontSize:11, color:space.color, display:"flex", alignItems:"center", gap:6 }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={space.color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+            {t.searchSemanticActive || "Semantic search active"}
+          </div>
+        )}
+        {search.trim() && embedderStatus === "loading" && (
+          <div style={{ fontSize:11, color:"var(--text-faint)", display:"flex", alignItems:"center", gap:6 }}>
+            <span style={{ display:"inline-block", width:10, height:10, border:"2px solid var(--text-faint)", borderTopColor:"transparent", borderRadius:"50%", animation:"spin 1s linear infinite" }}/>
+            {t.searchLoading}
           </div>
         )}
         {showArchived && (
@@ -129,9 +123,9 @@ export default function NotesList() {
                 {"\u2630"}
               </div>
               <div style={{ flex:1, minWidth:0, display:"flex", flexDirection:"column", gap:3, cursor:"pointer" }} onClick={()=>handleOpenNote(note)}>
-                <div style={{ fontSize:14, fontWeight:600, color:"#1C1917" }}>{search ? <Highlight text={note.title||t.listNoTitle} query={search}/> : (note.title||t.listNoTitle)}</div>
-                {note.intent && <div style={{ fontSize:11, color:"#A8A29E", fontStyle:"italic" }}>{"\u2192"} {search ? <Highlight text={note.intent} query={search}/> : note.intent}</div>}
-                <div style={{ fontSize:12, color:"#78716C", overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{search ? <Highlight text={textPreview(note.content, 72)} query={search}/> : textPreview(note.content, 72)}</div>
+                <div style={{ fontSize:14, fontWeight:600, color:"var(--text-primary)", overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{search ? <Highlight text={note.title||t.listNoTitle} query={search}/> : (note.title||t.listNoTitle)}</div>
+                {note.intent && <div style={{ fontSize:11, color:"var(--text-faint)", fontStyle:"italic" }}>{"\u2192"} {search ? <Highlight text={note.intent} query={search}/> : note.intent}</div>}
+                <div style={{ fontSize:12, color:"var(--text-muted)", overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{search ? <Highlight text={textPreview(note.content, 72)} query={search}/> : textPreview(note.content, 72)}</div>
               </div>
               <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4, flexShrink:0 }}>
                 <div style={{ display:"flex", gap:4, alignItems:"center" }}>

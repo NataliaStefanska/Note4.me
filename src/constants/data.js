@@ -1,7 +1,6 @@
-const TODAY = new Date();
-export const daysAgo = (d) => new Date(TODAY - d * 86400000).toISOString().split("T")[0];
-export function daysSince(d) { return Math.floor((TODAY - new Date(d)) / 86400000); }
-export { TODAY };
+export function getToday() { return new Date(); }
+export const daysAgo = (d) => new Date(getToday() - d * 86400000).toISOString().split("T")[0];
+export function daysSince(d) { return Math.floor((getToday() - new Date(d)) / 86400000); }
 
 export const INITIAL_SPACES = [
   { id: "s1", name: "Praca A",   emoji: "\u{1F4BC}", color: "#6366F1" },

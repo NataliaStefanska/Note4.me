@@ -4,7 +4,7 @@ import {
   saveUserPrefs, deleteNoteFirestore,
   saveAllSpaces, saveAllNotes, saveAllTasks,
 } from "../firebase";
-import { TODAY, INITIAL_SPACES, INITIAL_NOTES, daysSince } from "../constants/data";
+import { getToday, INITIAL_SPACES, INITIAL_NOTES, daysSince } from "../constants/data";
 import { T } from "../i18n/translations";
 import { textPreview } from "../utils/helpers";
 import { initEmbedder, indexNotes, vectorSearch as vsearch, isEmbedderReady } from "../utils/vectorSearch";
@@ -47,7 +47,6 @@ export function AppProvider({ children }) {
   const [showSaveToast, setShowSaveToast] = useState(false);
   const [linkSearch, setLinkSearch] = useState(null);
   const [autoSaveStatus, setAutoSaveStatus] = useState(null);
-  const [searchMode, setSearchMode] = useState("text"); // "text" | "vector"
   const [embedderStatus, setEmbedderStatus] = useState("idle"); // "idle" | "loading" | "ready" | "error"
   const [semanticResults, setSemanticResults] = useState(null);
 
@@ -87,8 +86,10 @@ export function AppProvider({ children }) {
             if (data.lang) setLang(data.lang);
           }
           setSyncStatus("synced");
-        } catch {
-          setSyncStatus("error");
+        } catch (err) {
+          // Gracefully handle offline/network failures — use local data, don't show error
+          console.warn("Firebase load failed, using local data:", err?.message || err);
+          setSyncStatus(navigator.onLine ? "error" : "offline");
         }
       } else {
         setUser(null);
@@ -166,8 +167,9 @@ export function AppProvider({ children }) {
           await Promise.all(promises);
         }
         setSyncStatus("synced");
-      } catch {
-        setSyncStatus("error");
+      } catch (err) {
+        console.warn("Firebase sync failed:", err?.message || err);
+        setSyncStatus(navigator.onLine ? "error" : "offline");
       }
     }, 1500);
   }, [user, authLoading, lang, activeSpace, spaces, allNotes, standaloneTasks]);
@@ -189,34 +191,22 @@ export function AppProvider({ children }) {
   const staleN = notes.filter(n=>!n.archived&&daysSince(n.lastOpened)>=30).length;
   const archivedN = notes.filter(n=>n.archived).length;
 
-  // Vector search: init embedder on mode switch
+  // Vector search: lazy init embedder in background on first search
+  const embedderInitAttempted = useRef(false);
   useEffect(() => {
-    if (searchMode !== "vector") return;
+    if (!search.trim() || embedderInitAttempted.current) return;
+    embedderInitAttempted.current = true;
     if (isEmbedderReady()) { setEmbedderStatus("ready"); return; }
     setEmbedderStatus("loading");
     initEmbedder().then(() => setEmbedderStatus("ready")).catch(() => setEmbedderStatus("error"));
-  }, [searchMode]);
+  }, [search]);
 
-  // Vector search: index notes when they change and embedder is ready
+  // Vector search: index notes when embedder is ready
   const vectorSearchTimer = useRef(null);
   useEffect(() => {
-    if (searchMode !== "vector" || embedderStatus !== "ready") return;
+    if (embedderStatus !== "ready") return;
     indexNotes(notes);
-  }, [notes, searchMode, embedderStatus]);
-
-  // Vector search: debounced semantic query
-  useEffect(() => {
-    if (searchMode !== "vector" || embedderStatus !== "ready" || !search.trim()) {
-      setSemanticResults(null);
-      return;
-    }
-    if (vectorSearchTimer.current) clearTimeout(vectorSearchTimer.current);
-    vectorSearchTimer.current = setTimeout(async () => {
-      const results = await vsearch(search, notes);
-      setSemanticResults(results);
-    }, 400);
-    return () => { if (vectorSearchTimer.current) clearTimeout(vectorSearchTimer.current); };
-  }, [search, notes, searchMode, embedderStatus]);
+  }, [notes, embedderStatus]);
 
   // Fuse.js index for fuzzy text search
   const fuseIndex = useMemo(() => {
@@ -272,7 +262,21 @@ export function AppProvider({ children }) {
       .sort((a,b)=>sortOrder==="desc"?b.updatedAt.localeCompare(a.updatedAt):a.updatedAt.localeCompare(b.updatedAt));
   })();
 
-  const filtered = (searchMode === "vector" && search.trim() && semanticResults)
+  // Auto-fallback: if text search finds 0 and semantic is ready, try semantic
+  const useSemanticFallback = search.trim().length >= 3 && textFiltered.length === 0 && embedderStatus === "ready";
+
+  // Debounced semantic search when fallback is needed
+  useEffect(() => {
+    if (!useSemanticFallback || !search.trim()) { setSemanticResults(null); return; }
+    if (vectorSearchTimer.current) clearTimeout(vectorSearchTimer.current);
+    vectorSearchTimer.current = setTimeout(async () => {
+      const results = await vsearch(search, notes);
+      setSemanticResults(results);
+    }, 400);
+    return () => { if (vectorSearchTimer.current) clearTimeout(vectorSearchTimer.current); };
+  }, [search, notes, useSemanticFallback]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const filtered = (useSemanticFallback && semanticResults)
     ? semanticResults.filter(n => {
         const ma = showArchived ? !!n.archived : !n.archived;
         const mt = filterTag ? n.tags.includes(filterTag) : true;
@@ -287,7 +291,7 @@ export function AppProvider({ children }) {
   function createTask()   { setShowTask(true); }
   function quickCapture() {
     const n={ id:"n"+Date.now(), title:"", content:"", tags:[], linkedNotes:[], tasks:[], intent:"",
-      updatedAt:TODAY.toISOString().split("T")[0], lastOpened:TODAY.toISOString().split("T")[0] };
+      updatedAt:getToday().toISOString().split("T")[0], lastOpened:getToday().toISOString().split("T")[0] };
     setAllNotes(p=>({...p,[activeSpace]:[n,...(p[activeSpace]||[])]}));
     setActive({...n});
     setTimeout(()=>{ if(titleRef.current) titleRef.current.focus(); },80);
@@ -295,7 +299,7 @@ export function AppProvider({ children }) {
 
   function handleIntent(intent) {
     const n={ id:"n"+Date.now(), title:"", content:"", tags:[], linkedNotes:[], tasks:[], intent,
-      updatedAt:TODAY.toISOString().split("T")[0], lastOpened:TODAY.toISOString().split("T")[0] };
+      updatedAt:getToday().toISOString().split("T")[0], lastOpened:getToday().toISOString().split("T")[0] };
     setAllNotes(p=>({...p,[activeSpace]:[n,...(p[activeSpace]||[])]}));
     setActive({...n}); setShowIntent(false);
     setTimeout(()=>{ if(titleRef.current) titleRef.current.focus(); },80);
@@ -303,7 +307,7 @@ export function AppProvider({ children }) {
 
   function handleTaskIntent(why, what, dueDate) {
     const task = { id:"t"+Date.now(), text:what, done:false, intent:why,
-      createdAt:TODAY.toISOString().split("T")[0], dueDate:dueDate||"" };
+      createdAt:getToday().toISOString().split("T")[0], dueDate:dueDate||"" };
     setStandaloneTasks(p=>({...p,[activeSpace]:[task,...(p[activeSpace]||[])]}));
     setShowTask(false);
   }
@@ -312,7 +316,9 @@ export function AppProvider({ children }) {
   }
 
   function openNote(note) {
-    setActive({...note, lastOpened:TODAY.toISOString().split("T")[0]});
+    const opened = {...note, lastOpened:getToday().toISOString().split("T")[0]};
+    setActive(opened);
+    setAllNotes(p=>({...p,[activeSpace]:(p[activeSpace]||[]).map(n=>n.id===opened.id?{...n,lastOpened:opened.lastOpened}:n)}));
   }
 
   function parseLinkedNotes(html) {
@@ -331,7 +337,7 @@ export function AppProvider({ children }) {
     if(!active) return;
     const content = editorRef.current ? editorRef.current.getHTML() : active.content;
     const linkedNotes = parseLinkedNotes(content);
-    const updated = {...active, content, linkedNotes, updatedAt:TODAY.toISOString().split("T")[0]};
+    const updated = {...active, content, linkedNotes, updatedAt:getToday().toISOString().split("T")[0]};
     setAllNotes(p=>({...p,[activeSpace]:(p[activeSpace]||[]).map(n=>n.id===updated.id?{...updated}:n)}));
     setActive(updated);
     if (!silent) {
@@ -365,7 +371,22 @@ export function AppProvider({ children }) {
   function toggleStandaloneTask(taskId) {
     setStandaloneTasks(prev=>({...prev,[activeSpace]:(prev[activeSpace]||[]).map(t=>t.id===taskId?{...t,done:!t.done}:t)}));
   }
-  function addTask(dueDate) { if(!newTask.trim()) return; setActive(p=>({...p,tasks:[...p.tasks,{id:"t"+Date.now(),text:newTask,done:false,dueDate:dueDate||""}]})); setNewTask(""); }
+  function addTask(dueDate) {
+    if(!newTask.trim()) return;
+    setActive(p=>{
+      const updated = {...p,tasks:[...p.tasks,{id:"t"+Date.now(),text:newTask,done:false,dueDate:dueDate||""}]};
+      setAllNotes(prev=>({...prev,[activeSpace]:(prev[activeSpace]||[]).map(n=>n.id===updated.id?{...updated}:n)}));
+      return updated;
+    });
+    setNewTask("");
+  }
+  function removeTask(taskId) {
+    setActive(p=>{
+      const updated = {...p, tasks:p.tasks.filter(tk=>tk.id!==taskId)};
+      setAllNotes(prev=>({...prev,[activeSpace]:(prev[activeSpace]||[]).map(n=>n.id===updated.id?{...updated}:n)}));
+      return updated;
+    });
+  }
   function setTaskDueDate(taskId, dueDate) {
     setActive(p=>{
       const updated = {...p, tasks:p.tasks.map(tk=>tk.id===taskId?{...tk,dueDate}:tk)};
@@ -464,7 +485,7 @@ export function AppProvider({ children }) {
     showDrawer, setShowDrawer, showArchived, setShowArchived,
     showDeleteConfirm, setShowDeleteConfirm, syncStatus, showSaveToast, isOnline,
     linkSearch, setLinkSearch, autoSaveStatus, setAutoSaveStatus,
-    searchMode, setSearchMode, embedderStatus,
+    embedderStatus, useSemanticFallback,
     // refs
     titleRef, editorRef,
     // derived
@@ -472,7 +493,7 @@ export function AppProvider({ children }) {
     // actions
     switchSpace, createNote, createTask, quickCapture, handleIntent, handleTaskIntent,
     openNote, saveNote, triggerAutoSave, toggleTask, toggleTaskInList, toggleStandaloneTask,
-    addTask, setTaskDueDate, setStandaloneTaskDueDate,
+    addTask, removeTask, setTaskDueDate, setStandaloneTaskDueDate,
     handleLinkSelect, toggleTag, reorderNotes, reorderTasks, deleteNote, archiveNote, unarchiveNote,
     handleLogin, handleLogout,
   };

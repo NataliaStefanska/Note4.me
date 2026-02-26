@@ -148,12 +148,9 @@ export default function SettingsView() {
         <div style={s.setSection}>
           <div style={s.setLabel}>{t.setData}</div>
           <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:8 }}>
-            <span style={{ width:7, height:7, borderRadius:"50%", background:syncStatus==="synced"?"#10B981":syncStatus==="saving"?"#F59E0B":"#EF4444" }}/>
-            <span style={{ fontSize:12, color:"#78716C" }}>
-              {syncStatus==="synced" ? (lang==="pl"?"Zsynchronizowano z Firebase":"Synced with Firebase")
-               : syncStatus==="saving" ? (lang==="pl"?"Zapisywanie...":"Saving...")
-               : syncStatus==="loading" ? (lang==="pl"?"Wczytywanie...":"Loading...")
-               : (lang==="pl"?"B\u0142\u0105d synchronizacji":"Sync error")}
+            <span style={{ width:7, height:7, borderRadius:"50%", background:syncStatus==="synced"?"#10B981":syncStatus==="saving"?"#F59E0B":syncStatus==="offline"?"#A8A29E":"#EF4444" }}/>
+            <span style={{ fontSize:12, color:"var(--text-muted)" }}>
+              {t["sync_"+syncStatus] || syncStatus}
             </span>
           </div>
           <div style={{ fontSize:12, color:"#A8A29E", marginTop:6 }}>{user.email}</div>

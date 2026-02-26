@@ -3,7 +3,7 @@ import { daysSince } from "../constants/data";
 import { HUB_COLORS } from "../constants/data";
 import { textPreview } from "../utils/helpers";
 
-export default function ForceGraph({ notes, allNotes, spaceColor, onOpenNote, showOrphans }) {
+export default function ForceGraph({ notes, allNotes, spaceColor, onOpenNote, showOrphans, t }) {
   const svgRef = useRef();
   const nodes = useRef([]);
   const links = useRef([]);
@@ -195,7 +195,7 @@ export default function ForceGraph({ notes, allNotes, spaceColor, onOpenNote, sh
         const R=h?11:7;
         const tn=nodes.current.find(n=>n.kind==="tag"&&n.tag===node.note.tags[0]);
         const nc=tn?tn.color:spaceColor;
-        const title=node.note.title||"Bez tytułu";
+        const title=node.note.title||(t&&t.listNoTitle)||"Untitled";
         // Orphan styling: dashed ring
         const orphanVisible = showOrphans && isOrphan;
         return (

@@ -86,3 +86,5 @@ export async function vectorSearch(query, notes, topK = 20) {
 export function isEmbedderReady() {
   return embedder !== null;
 }
+
+export { embed, cosineSim, noteToText };

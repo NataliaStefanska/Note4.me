@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import { useApp } from "./context/AppContext";
 import { useIsMobile } from "./hooks/useIsMobile";
@@ -8,6 +9,7 @@ import LoginScreen from "./components/LoginScreen";
 import IntentPrompt from "./components/IntentPrompt";
 import TaskIntentModal from "./components/TaskIntentModal";
 import SpaceManager from "./components/SpaceManager";
+import HelpModal from "./components/HelpModal";
 import Sidebar from "./components/Sidebar";
 import MobileNav from "./components/MobileNav";
 
@@ -28,6 +30,18 @@ export default function App() {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const location = useLocation();
+  const [showHelp, setShowHelp] = useState(false);
+
+  // Global keyboard shortcut: ? for help
+  useEffect(() => {
+    function handleKey(e) {
+      if (e.key === "?" && !e.ctrlKey && !e.metaKey && !["INPUT","TEXTAREA"].includes(e.target.tagName) && !e.target.closest("[contenteditable]")) {
+        setShowHelp(v => !v);
+      }
+    }
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, []);
 
   // Loading
   if (authLoading) return (
@@ -58,6 +72,7 @@ export default function App() {
       {showIntent && <IntentPrompt onConfirm={handleIntentConfirm} onSkip={()=>handleIntentConfirm("")} t={t}/>}
       {showTask && <TaskIntentModal color={space.color} onConfirm={handleTaskIntent} onClose={()=>setShowTask(false)} t={t}/>}
       {showSpaceMgr && <SpaceManager spaces={spaces} onSave={u=>{setSpaces(u);setShowSpaceMgr(false);}} onClose={()=>setShowSpaceMgr(false)} t={t}/>}
+      {showHelp && <HelpModal onClose={() => setShowHelp(false)} t={t}/>}
       {showDeleteConfirm && (
         <div style={m.overlay} onClick={()=>setShowDeleteConfirm(null)}>
           <div style={{ ...m.box, maxWidth:360 }} onClick={e=>e.stopPropagation()}>
@@ -75,7 +90,7 @@ export default function App() {
       {showSaveToast && (
         <div style={s.saveToast}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
-          {t.edSave === "Zapisz" ? "Zapisano" : "Saved"}
+          {t.savedToast}
         </div>
       )}
 
@@ -134,6 +149,18 @@ export default function App() {
           <Route path="/settings" element={<SettingsView />} />
         </Routes>
       </div>
+
+      {/* Help button (desktop only) */}
+      {!isMobile && (
+        <button onClick={() => setShowHelp(true)}
+          title={t.helpTitle || "Keyboard shortcuts & tips"}
+          style={{
+            position: "fixed", bottom: 16, right: 16, width: 32, height: 32, borderRadius: "50%",
+            background: "var(--bg-surface)", border: "1px solid var(--border)", color: "var(--text-muted)",
+            fontSize: 14, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center",
+            justifyContent: "center", boxShadow: "0 2px 8px var(--shadow)", zIndex: 100, fontFamily: "inherit",
+          }}>?</button>
+      )}
 
       {/* Mobile bottom nav */}
       {isMobile && !isEditor && <MobileNav />}
