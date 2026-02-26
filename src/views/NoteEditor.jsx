@@ -216,7 +216,7 @@ export default function NoteEditor() {
                 {task.done && <span style={{ color:"#fff", fontSize:10 }}>{"\u2713"}</span>}
               </div>
               <span style={{ fontSize:13, color:"var(--text-secondary)", textDecoration:task.done?"line-through":"none", flex:1 }}>{task.text}</span>
-              <DueDatePicker value={task.dueDate||""} onChange={v=>setTaskDueDate(task.id,v)} t={t}/>
+              <DueDatePicker value={task.dueDate||""} onChange={v=>setTaskDueDate(task.id,v)} t={t} direction="up"/>
               <button onClick={()=>removeTask(task.id)} style={{ background:"transparent", border:"none", color:"var(--text-faint)", cursor:"pointer", padding:4, fontSize:14, lineHeight:1, flexShrink:0 }} title={t.deleteBtn}>{"\u00D7"}</button>
             </div>);
           })}

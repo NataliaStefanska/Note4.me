@@ -31,7 +31,6 @@ export function AppProvider({ children }) {
   const [filterTag,   setFilterTag]   = useState(null);
   const [newTask,     setNewTask]     = useState("");
   const [showIntent,  setShowIntent]  = useState(false);
-  const [showTask,    setShowTask]    = useState(false);
   const [showTagPick, setShowTagPick] = useState(false);
   const [showSpaceMgr,setShowSpaceMgr]= useState(false);
   const [showDrop,    setShowDrop]    = useState(false);
@@ -292,7 +291,12 @@ export function AppProvider({ children }) {
 
   function switchSpace(id) { setActiveSpace(id); setActive(null); setFilterTag(null); setFilterFolder(null); setSearch(""); setShowDrop(false); setShowArchived(false); }
   function createNote()   { setShowIntent(true); }
-  function createTask()   { setShowTask(true); }
+  function createTask() {
+    const task = { id:"t"+Date.now(), text:"", description:"", done:false, subtasks:[],
+      createdAt:getToday().toISOString().split("T")[0], dueDate:"" };
+    setStandaloneTasks(p=>({...p,[activeSpace]:[task,...(p[activeSpace]||[])]}));
+    return task.id;
+  }
   function quickCapture() {
     const n={ id:"n"+Date.now(), title:"", content:"", tags:[], linkedNotes:[], tasks:[], intent:"", folder:filterFolder||"",
       updatedAt:getToday().toISOString().split("T")[0], lastOpened:getToday().toISOString().split("T")[0] };
@@ -309,11 +313,22 @@ export function AppProvider({ children }) {
     setTimeout(()=>{ if(titleRef.current) titleRef.current.focus(); },80);
   }
 
-  function handleTaskIntent(why, what, dueDate) {
-    const task = { id:"t"+Date.now(), text:what, done:false, intent:why,
-      createdAt:getToday().toISOString().split("T")[0], dueDate:dueDate||"" };
-    setStandaloneTasks(p=>({...p,[activeSpace]:[task,...(p[activeSpace]||[])]}));
-    setShowTask(false);
+  function updateStandaloneTask(taskId, updates) {
+    setStandaloneTasks(prev=>({...prev,[activeSpace]:(prev[activeSpace]||[]).map(t=>t.id===taskId?{...t,...updates}:t)}));
+  }
+  function addSubtask(taskId, text) {
+    if (!text.trim()) return;
+    const sub = { id:"st"+Date.now(), text:text.trim(), done:false };
+    setStandaloneTasks(prev=>({...prev,[activeSpace]:(prev[activeSpace]||[]).map(t=>t.id===taskId?{...t,subtasks:[...(t.subtasks||[]),sub]}:t)}));
+  }
+  function toggleSubtask(taskId, subId) {
+    setStandaloneTasks(prev=>({...prev,[activeSpace]:(prev[activeSpace]||[]).map(t=>t.id===taskId?{...t,subtasks:(t.subtasks||[]).map(s=>s.id===subId?{...s,done:!s.done}:s)}:t)}));
+  }
+  function removeSubtask(taskId, subId) {
+    setStandaloneTasks(prev=>({...prev,[activeSpace]:(prev[activeSpace]||[]).map(t=>t.id===taskId?{...t,subtasks:(t.subtasks||[]).filter(s=>s.id!==subId)}:t)}));
+  }
+  function deleteStandaloneTask(taskId) {
+    setStandaloneTasks(prev=>({...prev,[activeSpace]:(prev[activeSpace]||[]).filter(t=>t.id!==taskId)}));
   }
   function setStandaloneTaskDueDate(taskId, dueDate) {
     setStandaloneTasks(prev=>({...prev,[activeSpace]:(prev[activeSpace]||[]).map(t=>t.id===taskId?{...t,dueDate}:t)}));
@@ -499,7 +514,7 @@ export function AppProvider({ children }) {
     lang, setLang, theme, setTheme, user, authLoading, spaces, setSpaces, activeSpace, setActiveSpace,
     allNotes, setAllNotes, standaloneTasks, setStandaloneTasks, active, setActive,
     search, setSearch, filterTag, setFilterTag, newTask, setNewTask,
-    showIntent, setShowIntent, showTask, setShowTask, showTagPick, setShowTagPick,
+    showIntent, setShowIntent, showTagPick, setShowTagPick,
     showSpaceMgr, setShowSpaceMgr, showDrop, setShowDrop, sortOrder, setSortOrder,
     dateFrom, setDateFrom, dateTo, setDateTo, showDate, setShowDate,
     showDrawer, setShowDrawer, showArchived, setShowArchived, filterFolder, setFilterFolder,
@@ -511,8 +526,9 @@ export function AppProvider({ children }) {
     // derived
     t, notes, space, allTags, allFolders, staleN, archivedN, filtered,
     // actions
-    switchSpace, createNote, createTask, quickCapture, handleIntent, handleTaskIntent,
+    switchSpace, createNote, createTask, quickCapture, handleIntent,
     openNote, saveNote, triggerAutoSave, toggleTask, toggleTaskInList, toggleStandaloneTask,
+    updateStandaloneTask, addSubtask, toggleSubtask, removeSubtask, deleteStandaloneTask,
     addTask, removeTask, setTaskDueDate, setStandaloneTaskDueDate,
     setNoteFolder, renameFolder, deleteFolder,
     handleLinkSelect, toggleTag, reorderNotes, reorderTasks, deleteNote, archiveNote, unarchiveNote,

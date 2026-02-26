@@ -20,7 +20,7 @@ function formatShort(dateStr) {
   return { label: d.toLocaleDateString(undefined, { month: "short", day: "numeric" }), color: "var(--text-muted)" };
 }
 
-export default function DueDatePicker({ value, onChange, t }) {
+export default function DueDatePicker({ value, onChange, t, direction = "down" }) {
   const [open, setOpen] = useState(false);
   const ref = useRef();
   const today = new Date().toISOString().split("T")[0];
@@ -60,7 +60,8 @@ export default function DueDatePicker({ value, onChange, t }) {
       </button>
       {open && (
         <div style={{
-          position: "absolute", bottom: "100%", right: 0, marginBottom: 4,
+          position: "absolute", right: 0,
+          ...(direction === "up" ? { bottom: "100%", marginBottom: 4 } : { top: "100%", marginTop: 4 }),
           background: "var(--bg-surface)", border: "1px solid var(--border)",
           borderRadius: 10, padding: 8, zIndex: 50, minWidth: 200,
           boxShadow: "0 8px 24px var(--shadow)",

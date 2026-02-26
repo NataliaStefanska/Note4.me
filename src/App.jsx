@@ -7,7 +7,6 @@ import { m } from "./styles/modalStyles";
 
 import LoginScreen from "./components/LoginScreen";
 import IntentPrompt from "./components/IntentPrompt";
-import TaskIntentModal from "./components/TaskIntentModal";
 import SpaceManager from "./components/SpaceManager";
 import HelpModal from "./components/HelpModal";
 import Sidebar from "./components/Sidebar";
@@ -22,10 +21,10 @@ import SettingsView from "./views/SettingsView";
 export default function App() {
   const {
     user, authLoading, t, space, spaces, setSpaces,
-    showIntent, showTask, setShowTask, showSpaceMgr, setShowSpaceMgr,
+    showIntent, showSpaceMgr, setShowSpaceMgr,
     showDeleteConfirm, setShowDeleteConfirm, showSaveToast,
     showDrawer, setShowDrawer, filterTag,
-    handleLogin, handleIntent, handleTaskIntent, deleteNote,
+    handleLogin, handleIntent, deleteNote,
   } = useApp();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
@@ -70,7 +69,6 @@ export default function App() {
     <div style={s.root}>
       {/* Modals */}
       {showIntent && <IntentPrompt onConfirm={handleIntentConfirm} onSkip={()=>handleIntentConfirm("")} t={t}/>}
-      {showTask && <TaskIntentModal color={space.color} onConfirm={handleTaskIntent} onClose={()=>setShowTask(false)} t={t}/>}
       {showSpaceMgr && <SpaceManager spaces={spaces} onSave={u=>{setSpaces(u);setShowSpaceMgr(false);}} onClose={()=>setShowSpaceMgr(false)} t={t}/>}
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} t={t}/>}
       {showDeleteConfirm && (
