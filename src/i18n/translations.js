@@ -53,6 +53,7 @@ export const T = {
     helpLinkExample:"Przyk\u0142ad", helpLinkDesc:"Po\u0142\u0105czone notatki widoczne s\u0105 pod edytorem oraz jako w\u0119z\u0142y w widoku Grafu.",
     helpFeatures:"Funkcje", helpFeaturesList:"Wyszukiwanie dzia\u0142a jako fuzzy text. Gdy nie znajdzie wynik\u00F3w, automatycznie uruchamia wyszukiwanie semantyczne AI. U\u017Cyj Sugestii AI aby odkry\u0107 powi\u0105zane notatki i tagi.",
     helpClose:"Rozumiem",
+    sbFolders:"Foldery", edFolder:"Folder", folderNamePh:"Nazwa folderu...", folderCreate:"+ Utw\u00F3rz",
   },
   en: {
     loginTagline:"Your notes. Your rules.", loginSync:"Cross-device synchronization",
@@ -108,5 +109,6 @@ export const T = {
     helpLinkExample:"Example", helpLinkDesc:"Linked notes appear below the editor and as connections in Graph view.",
     helpFeatures:"Features", helpFeaturesList:"Search uses fuzzy text matching. When no results are found, semantic AI search activates automatically. Use AI Suggestions to discover related notes and tags.",
     helpClose:"Got it",
+    sbFolders:"Folders", edFolder:"Folder", folderNamePh:"Folder name...", folderCreate:"+ Create",
   },
 };

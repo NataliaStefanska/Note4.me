@@ -105,7 +105,7 @@ export default function NotesList() {
           </div>
         )}
       </div>
-      <div style={{ flex:1, overflowY:"auto", padding:"16px 8px 8px" }}>
+      <div style={{ flex:1, overflowY:"auto", padding:isMobile?"14px 10px 10px":"16px 8px 8px" }}>
         {filtered.length===0 && <div style={s.empty}>{t.listEmpty}</div>}
         {filtered.map(note=>{
           const stale=daysSince(note.lastOpened)>=30;
@@ -145,7 +145,10 @@ export default function NotesList() {
                     </button>
                   </div>
                 </div>
-                <div style={{ display:"flex", gap:4, flexWrap:"wrap", justifyContent:"flex-end" }}>{note.tags.map(tg=><span key={tg} style={{ ...s.tinyTag, ...(search && tg.toLowerCase().includes(search.toLowerCase()) ? {background:"#FEF08A"} : {}) }}>{tg}</span>)}</div>
+                <div style={{ display:"flex", gap:4, flexWrap:"wrap", justifyContent:"flex-end" }}>
+                  {note.folder && <span style={{ ...s.tinyTag, background:space.color+"12", color:space.color }}>{"\u{1F4C1}"} {note.folder}</span>}
+                  {note.tags.map(tg=><span key={tg} style={{ ...s.tinyTag, ...(search && tg.toLowerCase().includes(search.toLowerCase()) ? {background:"#FEF08A"} : {}) }}>{tg}</span>)}
+                </div>
                 {note.tasks.length>0 && <div style={{ fontSize:10, color:"#A8A29E" }}>{done}/{note.tasks.length}</div>}
                 {stale && !note.archived && <div style={{ width:6,height:6,borderRadius:"50%",background:"#F59E0B" }}/>}
                 {note.archived && <span style={{ fontSize:9, color:"#7C3AED", background:"#EDE9FE", padding:"1px 5px", borderRadius:3 }}>{"\u{1F4E6}"}</span>}

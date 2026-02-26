@@ -10,7 +10,7 @@ import TiptapEditor from "../components/TiptapEditor";
 import LinkAutocomplete from "../components/LinkAutocomplete";
 import TagPicker from "../components/TagPicker";
 import DueDatePicker from "../components/DueDatePicker";
-import { isEmbedderReady } from "../utils/vectorSearch";
+import { isEmbedderReady, initEmbedder, indexNotes } from "../utils/vectorSearch";
 import { suggestConnections, suggestTags } from "../utils/aiSuggestions";
 
 export default function NoteEditor() {
@@ -20,11 +20,14 @@ export default function NoteEditor() {
     newTask, setNewTask, titleRef, editorRef,
     saveNote, triggerAutoSave, toggleTask, addTask, removeTask, setTaskDueDate, reorderTasks, toggleTag, openNote, handleLinkSelect,
     archiveNote, unarchiveNote, setShowDeleteConfirm,
+    allFolders, setNoteFolder,
   } = useApp();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const contentWrapRef = useRef(null);
   const [taskDragOverId, setTaskDragOverId] = useState(null);
+  const [showFolderPick, setShowFolderPick] = useState(false);
+  const [folderInput, setFolderInput] = useState("");
   const [aiSuggestions, setAiSuggestions] = useState(null); // { connections, tags } | null
   const [aiLoading, setAiLoading] = useState(false);
   const [showAiPanel, setShowAiPanel] = useState(false);
@@ -44,10 +47,14 @@ export default function NoteEditor() {
   const [aiNotReady, setAiNotReady] = useState(false);
   const fetchAiSuggestions = useCallback(async () => {
     if (!active) return;
-    if (!isEmbedderReady()) { setAiNotReady(true); setTimeout(() => setAiNotReady(false), 3000); return; }
     setAiLoading(true);
     try {
+      // Auto-init embedder if not ready (fixes mobile access)
+      if (!isEmbedderReady()) {
+        await initEmbedder();
+      }
       const spNotes = allNotes[activeSpace] || [];
+      await indexNotes(spNotes);
       const [connections, tags] = await Promise.all([
         suggestConnections(active, spNotes),
         suggestTags(active, spNotes),
@@ -55,6 +62,7 @@ export default function NoteEditor() {
       setAiSuggestions({ connections, tags });
       setShowAiPanel(true);
     } catch {
+      setAiNotReady(true); setTimeout(() => setAiNotReady(false), 3000);
       setAiSuggestions(null);
     }
     setAiLoading(false);
@@ -107,7 +115,7 @@ export default function NoteEditor() {
           </button>
         </div>
       </div>
-      <div style={{ flex:1, padding:"20px", display:"flex", flexDirection:"column", gap:12, overflow:"hidden" }}>
+      <div style={{ flex:1, padding:isMobile?"18px 16px":"20px", display:"flex", flexDirection:"column", gap:14, overflow:"hidden" }}>
         <input ref={titleRef} style={s.titleInp} value={active.title} placeholder={t.edTitlePh} onChange={e=>{setActive(p=>({...p,title:e.target.value}));triggerAutoSave();}}/>
         <div ref={contentWrapRef} style={{ position:"relative", flex:1, minHeight:isMobile?160:220, display:"flex", flexDirection:"column" }}>
           <TiptapEditor
@@ -131,7 +139,7 @@ export default function NoteEditor() {
           )}
         </div>
       </div>
-      <div style={{ display:"flex", gap:isMobile?16:28, padding:isMobile?"12px 16px":"14px 40px", borderTop:"1px solid var(--border)", flexWrap:"wrap" }}>
+      <div style={{ display:"flex", gap:isMobile?16:28, padding:isMobile?"16px 18px":"14px 40px", borderTop:"1px solid var(--border)", flexWrap:"wrap" }}>
         <div style={s.toolSec}>
           <div style={s.toolLbl}>{t.edTags}</div>
           <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center" }}>
@@ -141,6 +149,37 @@ export default function NoteEditor() {
             <div style={{ position:"relative" }}>
               <button style={s.addTagBtn} onClick={()=>setShowTagPick(v=>!v)}>+ tag</button>
               {showTagPick && <TagPicker active={active.tags} onSelect={tg=>{toggleTag(tg);setShowTagPick(false);}} onClose={()=>setShowTagPick(false)} t={t}/>}
+            </div>
+          </div>
+        </div>
+        <div style={s.toolSec}>
+          <div style={s.toolLbl}>{t.edFolder||"Folder"}</div>
+          <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center" }}>
+            {active.folder && (
+              <span style={{ fontSize:12, padding:"3px 8px", borderRadius:6, background:space.color+"15", color:space.color, cursor:"pointer" }}
+                onClick={()=>setNoteFolder(active.id,"")}>
+                {"\u{1F4C1}"} {active.folder} {"\u00D7"}
+              </span>
+            )}
+            <div style={{ position:"relative" }}>
+              <button style={s.addTagBtn} onClick={()=>setShowFolderPick(v=>!v)}>{active.folder?"":"+"} {t.edFolder||"Folder"}</button>
+              {showFolderPick && (
+                <div style={s.pickerWrap}>
+                  <input style={s.pickerInput} placeholder={t.folderNamePh||"Folder name..."} value={folderInput} onChange={e=>setFolderInput(e.target.value)} autoFocus
+                    onKeyDown={e=>{if(e.key==="Enter"&&folderInput.trim()){setNoteFolder(active.id,folderInput.trim());setShowFolderPick(false);setFolderInput("");}if(e.key==="Escape")setShowFolderPick(false);}}/>
+                  {allFolders.filter(f=>!folderInput||f.toLowerCase().includes(folderInput.toLowerCase())).map(f=>(
+                    <button key={f} style={{...s.pickerItem,...((active.folder||"")===f?{background:space.color+"18",color:space.color}:{})}}
+                      onClick={()=>{setNoteFolder(active.id,f);setShowFolderPick(false);setFolderInput("");}}>
+                      {"\u{1F4C1}"} {f}
+                    </button>
+                  ))}
+                  {folderInput.trim()&&!allFolders.includes(folderInput.trim()) && (
+                    <button style={{...s.pickerItem,color:space.color}} onClick={()=>{setNoteFolder(active.id,folderInput.trim());setShowFolderPick(false);setFolderInput("");}}>
+                      + {t.folderCreate||"Create"} &quot;{folderInput.trim()}&quot;
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

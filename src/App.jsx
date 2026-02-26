@@ -118,7 +118,7 @@ export default function App() {
       )}
 
       {/* Main content */}
-      <div style={{ ...s.main, paddingBottom:isMobile?70:0 }}>
+      <div style={{ ...s.main, paddingBottom:isMobile?76:0 }}>
         {/* Mobile topbar */}
         {isMobile && !isEditor && !isSettings && (
           <div style={s.topBar}>

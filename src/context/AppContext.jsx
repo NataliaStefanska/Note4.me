@@ -41,6 +41,7 @@ export function AppProvider({ children }) {
   const [showDate,    setShowDate]    = useState(false);
   const [showDrawer,  setShowDrawer]  = useState(false);
   const [showArchived,setShowArchived]= useState(false);
+  const [filterFolder,setFilterFolder]= useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
   const [syncStatus,  setSyncStatus]  = useState("idle");
   const [isOnline,    setIsOnline]    = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
@@ -188,6 +189,7 @@ export function AppProvider({ children }) {
   const notes  = allNotes[activeSpace] || [];
   const space  = spaces.find(sp => sp.id===activeSpace) || spaces[0];
   const allTags= [...new Set([...notes.flatMap(n=>n.tags), ...(active ? active.tags : [])])];
+  const allFolders= [...new Set(notes.map(n=>n.folder).filter(Boolean))].sort();
   const staleN = notes.filter(n=>!n.archived&&daysSince(n.lastOpened)>=30).length;
   const archivedN = notes.filter(n=>n.archived).length;
 
@@ -257,7 +259,8 @@ export function AppProvider({ children }) {
         const mt = filterTag ? n.tags.includes(filterTag) : true;
         const mf = dateFrom ? n.updatedAt>=dateFrom : true;
         const mtd= dateTo   ? n.updatedAt<=dateTo   : true;
-        return ma&&mt&&mf&&mtd;
+        const mfol = filterFolder ? (n.folder||"")=== filterFolder : true;
+        return ma&&mt&&mf&&mtd&&mfol;
       })
       .sort((a,b)=>sortOrder==="desc"?b.updatedAt.localeCompare(a.updatedAt):a.updatedAt.localeCompare(b.updatedAt));
   })();
@@ -282,15 +285,16 @@ export function AppProvider({ children }) {
         const mt = filterTag ? n.tags.includes(filterTag) : true;
         const mf = dateFrom ? n.updatedAt>=dateFrom : true;
         const mtd= dateTo   ? n.updatedAt<=dateTo   : true;
-        return ma&&mt&&mf&&mtd;
+        const mfol = filterFolder ? (n.folder||"")=== filterFolder : true;
+        return ma&&mt&&mf&&mtd&&mfol;
       })
     : textFiltered;
 
-  function switchSpace(id) { setActiveSpace(id); setActive(null); setFilterTag(null); setSearch(""); setShowDrop(false); setShowArchived(false); }
+  function switchSpace(id) { setActiveSpace(id); setActive(null); setFilterTag(null); setFilterFolder(null); setSearch(""); setShowDrop(false); setShowArchived(false); }
   function createNote()   { setShowIntent(true); }
   function createTask()   { setShowTask(true); }
   function quickCapture() {
-    const n={ id:"n"+Date.now(), title:"", content:"", tags:[], linkedNotes:[], tasks:[], intent:"",
+    const n={ id:"n"+Date.now(), title:"", content:"", tags:[], linkedNotes:[], tasks:[], intent:"", folder:filterFolder||"",
       updatedAt:getToday().toISOString().split("T")[0], lastOpened:getToday().toISOString().split("T")[0] };
     setAllNotes(p=>({...p,[activeSpace]:[n,...(p[activeSpace]||[])]}));
     setActive({...n});
@@ -298,7 +302,7 @@ export function AppProvider({ children }) {
   }
 
   function handleIntent(intent) {
-    const n={ id:"n"+Date.now(), title:"", content:"", tags:[], linkedNotes:[], tasks:[], intent,
+    const n={ id:"n"+Date.now(), title:"", content:"", tags:[], linkedNotes:[], tasks:[], intent, folder:filterFolder||"",
       updatedAt:getToday().toISOString().split("T")[0], lastOpened:getToday().toISOString().split("T")[0] };
     setAllNotes(p=>({...p,[activeSpace]:[n,...(p[activeSpace]||[])]}));
     setActive({...n}); setShowIntent(false);
@@ -395,6 +399,22 @@ export function AppProvider({ children }) {
     });
   }
 
+  function setNoteFolder(noteId, folder) {
+    setAllNotes(p=>({...p,[activeSpace]:(p[activeSpace]||[]).map(n=>n.id===noteId?{...n,folder:folder||""}:n)}));
+    if (active && active.id===noteId) setActive(prev=>({...prev,folder:folder||""}));
+  }
+  function renameFolder(oldName, newName) {
+    if (!oldName || !newName.trim() || oldName===newName) return;
+    setAllNotes(p=>({...p,[activeSpace]:(p[activeSpace]||[]).map(n=>(n.folder||"")===oldName?{...n,folder:newName.trim()}:n)}));
+    if (active && (active.folder||"")===oldName) setActive(prev=>({...prev,folder:newName.trim()}));
+    if (filterFolder===oldName) setFilterFolder(newName.trim());
+  }
+  function deleteFolder(name) {
+    setAllNotes(p=>({...p,[activeSpace]:(p[activeSpace]||[]).map(n=>(n.folder||"")===name?{...n,folder:""}:n)}));
+    if (active && (active.folder||"")===name) setActive(prev=>({...prev,folder:""}));
+    if (filterFolder===name) setFilterFolder(null);
+  }
+
   function handleLinkSelect(note) {
     const editor = editorRef.current;
     if (!editor) { setLinkSearch(null); return; }
@@ -482,18 +502,19 @@ export function AppProvider({ children }) {
     showIntent, setShowIntent, showTask, setShowTask, showTagPick, setShowTagPick,
     showSpaceMgr, setShowSpaceMgr, showDrop, setShowDrop, sortOrder, setSortOrder,
     dateFrom, setDateFrom, dateTo, setDateTo, showDate, setShowDate,
-    showDrawer, setShowDrawer, showArchived, setShowArchived,
+    showDrawer, setShowDrawer, showArchived, setShowArchived, filterFolder, setFilterFolder,
     showDeleteConfirm, setShowDeleteConfirm, syncStatus, showSaveToast, isOnline,
     linkSearch, setLinkSearch, autoSaveStatus, setAutoSaveStatus,
     embedderStatus, useSemanticFallback,
     // refs
     titleRef, editorRef,
     // derived
-    t, notes, space, allTags, staleN, archivedN, filtered,
+    t, notes, space, allTags, allFolders, staleN, archivedN, filtered,
     // actions
     switchSpace, createNote, createTask, quickCapture, handleIntent, handleTaskIntent,
     openNote, saveNote, triggerAutoSave, toggleTask, toggleTaskInList, toggleStandaloneTask,
     addTask, removeTask, setTaskDueDate, setStandaloneTaskDueDate,
+    setNoteFolder, renameFolder, deleteFolder,
     handleLinkSelect, toggleTag, reorderNotes, reorderTasks, deleteNote, archiveNote, unarchiveNote,
     handleLogin, handleLogout,
   };

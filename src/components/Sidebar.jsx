@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 import { s } from "../styles/appStyles";
@@ -6,15 +7,20 @@ import { NAV_ITEMS } from "./navItems";
 export default function Sidebar({ onClose }) {
   const {
     t, space, spaces, activeSpace, filterTag, setFilterTag,
+    filterFolder, setFilterFolder, allFolders,
     showDrop, setShowDrop, showArchived, setShowArchived,
     allTags, archivedN, staleN, syncStatus, isOnline,
-    switchSpace, setShowSpaceMgr,
+    switchSpace, setShowSpaceMgr, renameFolder, deleteFolder,
   } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
   const NAV = NAV_ITEMS(t);
   const sidebarNav = NAV.filter(item => item.id !== "settings");
   const ALL = t.sbAll;
+  const [showNewFolder, setShowNewFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [editingFolder, setEditingFolder] = useState(null);
+  const [editFolderName, setEditFolderName] = useState("");
 
   function handleNav(path) {
     navigate(path);
@@ -67,6 +73,53 @@ export default function Sidebar({ onClose }) {
               onClick={()=>{ setFilterTag(tag===ALL?null:(filterTag===tag?null:tag)); if(onClose)onClose(); }}>
               {tag}
             </button>
+          );
+        })}
+      </div>
+      <div style={s.div}/>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+        <div style={s.label}>{t.sbFolders||"Folders"}</div>
+        <button style={{ background:"transparent", border:"none", color:"#57534E", fontSize:14, cursor:"pointer", padding:"0 6px" }}
+          onClick={()=>{setShowNewFolder(v=>!v);setNewFolderName("");}}>+</button>
+      </div>
+      {showNewFolder && (
+        <div style={{ display:"flex", gap:4, padding:"0 6px", marginBottom:4 }}>
+          <input style={{ flex:1, background:"#292524", border:"1px solid #3F3C3A", borderRadius:5, padding:"4px 8px", fontSize:12, color:"#E7E5E4", fontFamily:"inherit", outline:"none" }}
+            placeholder={t.folderNamePh||"Folder name..."} value={newFolderName} onChange={e=>setNewFolderName(e.target.value)} autoFocus
+            onKeyDown={e=>{ if(e.key==="Enter"&&newFolderName.trim()){setFilterFolder(newFolderName.trim());setShowNewFolder(false);setNewFolderName("");if(onClose)onClose();} if(e.key==="Escape"){setShowNewFolder(false);} }}/>
+          <button style={{ background:space.color, border:"none", borderRadius:5, padding:"4px 8px", fontSize:11, color:"#fff", cursor:"pointer", fontFamily:"inherit" }}
+            onClick={()=>{if(newFolderName.trim()){setFilterFolder(newFolderName.trim());setShowNewFolder(false);setNewFolderName("");}}}>{t.smAdd||"Add"}</button>
+        </div>
+      )}
+      <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
+        <button style={{ ...s.tagPill, ...(filterFolder===null?{background:space.color+"22",color:space.color}:{}) }}
+          onClick={()=>{setFilterFolder(null);if(onClose)onClose();}}>
+          {t.sbAll||"all"}
+        </button>
+        {allFolders.map(f=>{
+          const active_f = filterFolder===f;
+          return (
+            <div key={f} style={{ display:"flex", alignItems:"center", gap:2 }}>
+              {editingFolder===f ? (
+                <input style={{ flex:1, background:"#292524", border:"1px solid #3F3C3A", borderRadius:5, padding:"4px 8px", fontSize:12, color:"#E7E5E4", fontFamily:"inherit", outline:"none" }}
+                  value={editFolderName} onChange={e=>setEditFolderName(e.target.value)} autoFocus
+                  onKeyDown={e=>{
+                    if(e.key==="Enter"&&editFolderName.trim()){renameFolder(f,editFolderName.trim());setEditingFolder(null);}
+                    if(e.key==="Escape")setEditingFolder(null);
+                  }}
+                  onBlur={()=>{if(editFolderName.trim()&&editFolderName.trim()!==f)renameFolder(f,editFolderName.trim());setEditingFolder(null);}}/>
+              ) : (
+                <button style={{ ...s.tagPill, flex:1, ...(active_f?{background:space.color+"22",color:space.color}:{}) }}
+                  onClick={()=>{setFilterFolder(active_f?null:f);if(onClose)onClose();}}
+                  onDoubleClick={()=>{setEditingFolder(f);setEditFolderName(f);}}>
+                  {"\u{1F4C1}"} {f}
+                </button>
+              )}
+              {active_f && !editingFolder && (
+                <button style={{ background:"transparent", border:"none", color:"#57534E", fontSize:10, cursor:"pointer", padding:2 }}
+                  onClick={()=>deleteFolder(f)} title={t.deleteBtn||"Delete"}>{"\u2715"}</button>
+              )}
+            </div>
           );
         })}
       </div>
