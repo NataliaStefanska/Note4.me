@@ -94,7 +94,7 @@ export default function NotesList() {
         {searchMode === "vector" && embedderStatus !== "ready" && (
           <div style={{ fontSize:11, color:embedderStatus==="error"?"#EF4444":"#A8A29E", display:"flex", alignItems:"center", gap:6 }}>
             {embedderStatus === "loading" && <span style={{ display:"inline-block", width:12, height:12, border:"2px solid "+space.color, borderTop:"2px solid transparent", borderRadius:"50%", animation:"spin 1s linear infinite" }}/>}
-            {embedderStatus === "loading" ? t.searchLoading : embedderStatus === "error" ? "Error loading model" : ""}
+            {embedderStatus === "loading" ? t.searchLoading : embedderStatus === "error" ? t.searchError : ""}
           </div>
         )}
         {showArchived && (
@@ -129,9 +129,9 @@ export default function NotesList() {
                 {"\u2630"}
               </div>
               <div style={{ flex:1, minWidth:0, display:"flex", flexDirection:"column", gap:3, cursor:"pointer" }} onClick={()=>handleOpenNote(note)}>
-                <div style={{ fontSize:14, fontWeight:600, color:"#1C1917" }}>{search ? <Highlight text={note.title||t.listNoTitle} query={search}/> : (note.title||t.listNoTitle)}</div>
-                {note.intent && <div style={{ fontSize:11, color:"#A8A29E", fontStyle:"italic" }}>{"\u2192"} {search ? <Highlight text={note.intent} query={search}/> : note.intent}</div>}
-                <div style={{ fontSize:12, color:"#78716C", overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{search ? <Highlight text={textPreview(note.content, 72)} query={search}/> : textPreview(note.content, 72)}</div>
+                <div style={{ fontSize:14, fontWeight:600, color:"var(--text-primary)", overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{search ? <Highlight text={note.title||t.listNoTitle} query={search}/> : (note.title||t.listNoTitle)}</div>
+                {note.intent && <div style={{ fontSize:11, color:"var(--text-faint)", fontStyle:"italic" }}>{"\u2192"} {search ? <Highlight text={note.intent} query={search}/> : note.intent}</div>}
+                <div style={{ fontSize:12, color:"var(--text-muted)", overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{search ? <Highlight text={textPreview(note.content, 72)} query={search}/> : textPreview(note.content, 72)}</div>
               </div>
               <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4, flexShrink:0 }}>
                 <div style={{ display:"flex", gap:4, alignItems:"center" }}>

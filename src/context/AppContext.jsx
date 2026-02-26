@@ -4,7 +4,7 @@ import {
   saveUserPrefs, deleteNoteFirestore,
   saveAllSpaces, saveAllNotes, saveAllTasks,
 } from "../firebase";
-import { TODAY, INITIAL_SPACES, INITIAL_NOTES, daysSince } from "../constants/data";
+import { getToday, INITIAL_SPACES, INITIAL_NOTES, daysSince } from "../constants/data";
 import { T } from "../i18n/translations";
 import { textPreview } from "../utils/helpers";
 import { initEmbedder, indexNotes, vectorSearch as vsearch, isEmbedderReady } from "../utils/vectorSearch";
@@ -287,7 +287,7 @@ export function AppProvider({ children }) {
   function createTask()   { setShowTask(true); }
   function quickCapture() {
     const n={ id:"n"+Date.now(), title:"", content:"", tags:[], linkedNotes:[], tasks:[], intent:"",
-      updatedAt:TODAY.toISOString().split("T")[0], lastOpened:TODAY.toISOString().split("T")[0] };
+      updatedAt:getToday().toISOString().split("T")[0], lastOpened:getToday().toISOString().split("T")[0] };
     setAllNotes(p=>({...p,[activeSpace]:[n,...(p[activeSpace]||[])]}));
     setActive({...n});
     setTimeout(()=>{ if(titleRef.current) titleRef.current.focus(); },80);
@@ -295,7 +295,7 @@ export function AppProvider({ children }) {
 
   function handleIntent(intent) {
     const n={ id:"n"+Date.now(), title:"", content:"", tags:[], linkedNotes:[], tasks:[], intent,
-      updatedAt:TODAY.toISOString().split("T")[0], lastOpened:TODAY.toISOString().split("T")[0] };
+      updatedAt:getToday().toISOString().split("T")[0], lastOpened:getToday().toISOString().split("T")[0] };
     setAllNotes(p=>({...p,[activeSpace]:[n,...(p[activeSpace]||[])]}));
     setActive({...n}); setShowIntent(false);
     setTimeout(()=>{ if(titleRef.current) titleRef.current.focus(); },80);
@@ -303,7 +303,7 @@ export function AppProvider({ children }) {
 
   function handleTaskIntent(why, what, dueDate) {
     const task = { id:"t"+Date.now(), text:what, done:false, intent:why,
-      createdAt:TODAY.toISOString().split("T")[0], dueDate:dueDate||"" };
+      createdAt:getToday().toISOString().split("T")[0], dueDate:dueDate||"" };
     setStandaloneTasks(p=>({...p,[activeSpace]:[task,...(p[activeSpace]||[])]}));
     setShowTask(false);
   }
@@ -312,7 +312,9 @@ export function AppProvider({ children }) {
   }
 
   function openNote(note) {
-    setActive({...note, lastOpened:TODAY.toISOString().split("T")[0]});
+    const opened = {...note, lastOpened:getToday().toISOString().split("T")[0]};
+    setActive(opened);
+    setAllNotes(p=>({...p,[activeSpace]:(p[activeSpace]||[]).map(n=>n.id===opened.id?{...n,lastOpened:opened.lastOpened}:n)}));
   }
 
   function parseLinkedNotes(html) {
@@ -331,7 +333,7 @@ export function AppProvider({ children }) {
     if(!active) return;
     const content = editorRef.current ? editorRef.current.getHTML() : active.content;
     const linkedNotes = parseLinkedNotes(content);
-    const updated = {...active, content, linkedNotes, updatedAt:TODAY.toISOString().split("T")[0]};
+    const updated = {...active, content, linkedNotes, updatedAt:getToday().toISOString().split("T")[0]};
     setAllNotes(p=>({...p,[activeSpace]:(p[activeSpace]||[]).map(n=>n.id===updated.id?{...updated}:n)}));
     setActive(updated);
     if (!silent) {
@@ -365,7 +367,22 @@ export function AppProvider({ children }) {
   function toggleStandaloneTask(taskId) {
     setStandaloneTasks(prev=>({...prev,[activeSpace]:(prev[activeSpace]||[]).map(t=>t.id===taskId?{...t,done:!t.done}:t)}));
   }
-  function addTask(dueDate) { if(!newTask.trim()) return; setActive(p=>({...p,tasks:[...p.tasks,{id:"t"+Date.now(),text:newTask,done:false,dueDate:dueDate||""}]})); setNewTask(""); }
+  function addTask(dueDate) {
+    if(!newTask.trim()) return;
+    setActive(p=>{
+      const updated = {...p,tasks:[...p.tasks,{id:"t"+Date.now(),text:newTask,done:false,dueDate:dueDate||""}]};
+      setAllNotes(prev=>({...prev,[activeSpace]:(prev[activeSpace]||[]).map(n=>n.id===updated.id?{...updated}:n)}));
+      return updated;
+    });
+    setNewTask("");
+  }
+  function removeTask(taskId) {
+    setActive(p=>{
+      const updated = {...p, tasks:p.tasks.filter(tk=>tk.id!==taskId)};
+      setAllNotes(prev=>({...prev,[activeSpace]:(prev[activeSpace]||[]).map(n=>n.id===updated.id?{...updated}:n)}));
+      return updated;
+    });
+  }
   function setTaskDueDate(taskId, dueDate) {
     setActive(p=>{
       const updated = {...p, tasks:p.tasks.map(tk=>tk.id===taskId?{...tk,dueDate}:tk)};
@@ -472,7 +489,7 @@ export function AppProvider({ children }) {
     // actions
     switchSpace, createNote, createTask, quickCapture, handleIntent, handleTaskIntent,
     openNote, saveNote, triggerAutoSave, toggleTask, toggleTaskInList, toggleStandaloneTask,
-    addTask, setTaskDueDate, setStandaloneTaskDueDate,
+    addTask, removeTask, setTaskDueDate, setStandaloneTaskDueDate,
     handleLinkSelect, toggleTag, reorderNotes, reorderTasks, deleteNote, archiveNote, unarchiveNote,
     handleLogin, handleLogout,
   };

@@ -16,7 +16,7 @@ export default function NoteEditor() {
     t, space, active, setActive, allNotes, activeSpace, linkSearch, setLinkSearch,
     autoSaveStatus, setAutoSaveStatus, showTagPick, setShowTagPick,
     newTask, setNewTask, titleRef, editorRef,
-    saveNote, triggerAutoSave, toggleTask, addTask, setTaskDueDate, reorderTasks, toggleTag, openNote, handleLinkSelect,
+    saveNote, triggerAutoSave, toggleTask, addTask, removeTask, setTaskDueDate, reorderTasks, toggleTag, openNote, handleLinkSelect,
     archiveNote, unarchiveNote, setShowDeleteConfirm,
   } = useApp();
   const isMobile = useIsMobile();
@@ -39,8 +39,10 @@ export default function NoteEditor() {
     if (showAiPanel) setShowAiPanel(false);
   }
 
+  const [aiNotReady, setAiNotReady] = useState(false);
   const fetchAiSuggestions = useCallback(async () => {
-    if (!active || !isEmbedderReady()) return;
+    if (!active) return;
+    if (!isEmbedderReady()) { setAiNotReady(true); setTimeout(() => setAiNotReady(false), 3000); return; }
     setAiLoading(true);
     try {
       const spNotes = allNotes[activeSpace] || [];
@@ -85,7 +87,7 @@ export default function NoteEditor() {
           <button style={{ ...s.staleBtn, color:"#EF4444", borderColor:"#EF4444" }} onClick={()=>setShowDeleteConfirm(active.id)}>{t.deleteBtn}</button>
         </div>
       )}
-      <div style={{ display:"flex", alignItems:"center", gap:10, padding:"12px 20px", borderBottom:"1px solid #E7E5E4" }}>
+      <div style={{ display:"flex", alignItems:"center", gap:10, padding:"12px 20px", borderBottom:"1px solid var(--border)" }}>
         <button style={s.backBtn} onClick={goBack}>{t.edBack}</button>
         {active.intent && !isMobile && <div style={{ flex:1, fontSize:12, color:"#A8A29E", fontStyle:"italic", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{"\u2192"} {active.intent}</div>}
         <div style={{ display:"flex", gap:6, marginLeft:"auto", alignItems:"center" }}>
@@ -127,7 +129,7 @@ export default function NoteEditor() {
           )}
         </div>
       </div>
-      <div style={{ display:"flex", gap:isMobile?16:28, padding:isMobile?"12px 16px":"14px 40px", borderTop:"1px solid #E7E5E4", flexWrap:"wrap" }}>
+      <div style={{ display:"flex", gap:isMobile?16:28, padding:isMobile?"12px 16px":"14px 40px", borderTop:"1px solid var(--border)", flexWrap:"wrap" }}>
         <div style={s.toolSec}>
           <div style={s.toolLbl}>{t.edTags}</div>
           <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center" }}>
@@ -158,12 +160,13 @@ export default function NoteEditor() {
               <div style={{ ...s.chk, ...(task.done?{background:space.color,borderColor:space.color}:{}) }} onClick={()=>toggleTask(task.id)}>
                 {task.done && <span style={{ color:"#fff", fontSize:10 }}>{"\u2713"}</span>}
               </div>
-              <span style={{ fontSize:13, color:"#44403C", textDecoration:task.done?"line-through":"none", flex:1 }}>{task.text}</span>
+              <span style={{ fontSize:13, color:"var(--text-secondary)", textDecoration:task.done?"line-through":"none", flex:1 }}>{task.text}</span>
               <input type="date" draggable={false} onMouseDown={e=>e.stopPropagation()} value={task.dueDate||""} onChange={e=>setTaskDueDate(task.id,e.target.value)}
                 style={{ ...s.dateInp, fontSize:10, padding:"2px 4px", minWidth:110,
                   color: overdue?"#EF4444":dueToday?"#D97706":"#78716C",
                   borderColor: overdue?"#FECACA":dueToday?"#FDE68A":"#E7E5E4" }}
                 title={t.edDueDate||"Due date"}/>
+              <button onClick={()=>removeTask(task.id)} style={{ background:"transparent", border:"none", color:"var(--text-faint)", cursor:"pointer", padding:4, fontSize:14, lineHeight:1, flexShrink:0 }} title={t.deleteBtn}>{"\u00D7"}</button>
             </div>);
           })}
           <div style={{ display:"flex", gap:6, alignItems:"center", marginTop:2 }}>
@@ -175,7 +178,7 @@ export default function NoteEditor() {
         </div>
       </div>
       {(linked.length > 0 || backlinks.length > 0) && (
-        <div style={{ display:"flex", gap:isMobile?16:28, padding:isMobile?"8px 16px":"8px 40px", borderTop:"1px solid #F5F5F4", flexWrap:"wrap" }}>
+        <div style={{ display:"flex", gap:isMobile?16:28, padding:isMobile?"8px 16px":"8px 40px", borderTop:"1px solid var(--border-light)", flexWrap:"wrap" }}>
           {linked.length > 0 && (
             <div style={s.toolSec}>
               <div style={s.toolLbl}>{t.linkedNotesLabel}</div>
@@ -199,7 +202,7 @@ export default function NoteEditor() {
                 {backlinks.map(n => (
                   <button key={n.id} onClick={()=>openNote(n)} style={{
                     fontSize:12, padding:"4px 10px", borderRadius:6,
-                    background:"#F5F5F4", color:"#57534E", border:"1px solid #E7E5E4",
+                    background:"var(--bg-card)", color:"var(--text-muted)", border:"1px solid var(--border)",
                     cursor:"pointer", fontFamily:"inherit"
                   }}>
                     {n.title || t.listNoTitle}
@@ -235,6 +238,7 @@ export default function NoteEditor() {
               {t.aiRefresh || "Refresh"}
             </button>
           )}
+          {aiNotReady && <span style={{ fontSize:11, color:"#F59E0B" }}>{t.aiNotReady || "Enable semantic search first"}</span>}
         </div>
         {showAiPanel && aiSuggestions && (
           <div style={{ display:"flex", gap:isMobile?16:28, flexWrap:"wrap", marginTop:10, paddingBottom:6 }}>
