@@ -7,7 +7,7 @@ export default function Sidebar({ onClose }) {
   const {
     t, space, spaces, activeSpace, filterTag, setFilterTag,
     showDrop, setShowDrop, showArchived, setShowArchived,
-    allTags, archivedN, staleN, syncStatus,
+    allTags, archivedN, staleN, syncStatus, isOnline,
     switchSpace, setShowSpaceMgr,
   } = useApp();
   const navigate = useNavigate();
@@ -79,8 +79,10 @@ export default function Sidebar({ onClose }) {
       )}
       {staleN>0 && <div style={s.staleHint}>{"\u23F3"} {staleN} {staleN===1?t.sbStale1:t.sbStaleN}</div>}
       <div style={{ display:"flex", alignItems:"center", gap:6, padding:"4px 6px" }}>
-        <span style={{ width:6,height:6,borderRadius:"50%",background:syncStatus==="synced"?"#10B981":syncStatus==="saving"?"#F59E0B":"#EF4444",flexShrink:0 }}/>
-        <span style={{ fontSize:11, color:"#57534E" }}>{syncStatus==="synced"?t.sbSynced:syncStatus==="saving"?"...":(syncStatus==="error"?"!":t.sbSynced)}</span>
+        <span style={{ width:6,height:6,borderRadius:"50%",background:!isOnline?"#78716C":syncStatus==="synced"?"#10B981":syncStatus==="saving"?"#F59E0B":"#EF4444",flexShrink:0 }}/>
+        <span style={{ fontSize:11, color:"#57534E" }}>
+          {!isOnline ? (t.sbOffline || "Offline") : syncStatus==="synced"?t.sbSynced:syncStatus==="saving"?"...":(syncStatus==="error"?"!":t.sbSynced)}
+        </span>
       </div>
     </>
   );
