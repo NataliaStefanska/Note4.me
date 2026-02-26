@@ -45,6 +45,7 @@ export const T = {
     setExport:"Eksport / Import", exportMd:"Eksport Markdown", exportJson:"Eksport JSON", importJson:"Import JSON",
     setTheme:"Motyw", setLight:"Jasny", setDark:"Ciemny",
     searchText:"Tekst (fuzzy)", searchSemantic:"Semantyczne", searchLoading:"Model AI si\u0119 \u0142aduje...", searchReady:"Wyszukiwanie semantyczne aktywne",
+    aiSuggest:"Sugestie AI", aiRefresh:"Od\u015Bwie\u017C", aiConnections:"Sugerowane po\u0142\u0105czenia", aiTags:"Sugerowane tagi", aiNoSuggestions:"Brak sugestii \u2014 spr\u00F3buj doda\u0107 wi\u0119cej tre\u015Bci.",
   },
   en: {
     loginTagline:"Your notes. Your rules.", loginSync:"Cross-device synchronization",
@@ -92,5 +93,6 @@ export const T = {
     setExport:"Export / Import", exportMd:"Export Markdown", exportJson:"Export JSON", importJson:"Import JSON",
     setTheme:"Theme", setLight:"Light", setDark:"Dark",
     searchText:"Text (fuzzy)", searchSemantic:"Semantic", searchLoading:"AI model loading...", searchReady:"Semantic search active",
+    aiSuggest:"AI Suggestions", aiRefresh:"Refresh", aiConnections:"Suggested connections", aiTags:"Suggested tags", aiNoSuggestions:"No suggestions found \u2014 try adding more content.",
   },
 };

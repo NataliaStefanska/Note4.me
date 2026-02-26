@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useApp } from "../context/AppContext";
 import { useIsMobile } from "../hooks/useIsMobile";
 import { daysSince } from "../constants/data";
@@ -8,6 +8,8 @@ import { s } from "../styles/appStyles";
 import TiptapEditor from "../components/TiptapEditor";
 import LinkAutocomplete from "../components/LinkAutocomplete";
 import TagPicker from "../components/TagPicker";
+import { isEmbedderReady } from "../utils/vectorSearch";
+import { suggestConnections, suggestTags } from "../utils/aiSuggestions";
 
 export default function NoteEditor() {
   const {
@@ -21,10 +23,38 @@ export default function NoteEditor() {
   const navigate = useNavigate();
   const contentWrapRef = useRef(null);
   const [taskDragOverId, setTaskDragOverId] = useState(null);
+  const [aiSuggestions, setAiSuggestions] = useState(null); // { connections, tags } | null
+  const [aiLoading, setAiLoading] = useState(false);
+  const [showAiPanel, setShowAiPanel] = useState(false);
+  const [aiNoteId, setAiNoteId] = useState(null); // tracks which note suggestions belong to
 
   useEffect(() => {
     if (!active) navigate("/", { replace: true });
   }, [active, navigate]);
+
+  // Reset AI suggestions when switching notes (inline check, no effect setState)
+  if (active && active.id !== aiNoteId) {
+    setAiNoteId(active.id);
+    if (aiSuggestions) setAiSuggestions(null);
+    if (showAiPanel) setShowAiPanel(false);
+  }
+
+  const fetchAiSuggestions = useCallback(async () => {
+    if (!active || !isEmbedderReady()) return;
+    setAiLoading(true);
+    try {
+      const spNotes = allNotes[activeSpace] || [];
+      const [connections, tags] = await Promise.all([
+        suggestConnections(active, spNotes),
+        suggestTags(active, spNotes),
+      ]);
+      setAiSuggestions({ connections, tags });
+      setShowAiPanel(true);
+    } catch {
+      setAiSuggestions(null);
+    }
+    setAiLoading(false);
+  }, [active, allNotes, activeSpace]);
 
   if (!active) return null;
 
@@ -180,6 +210,86 @@ export default function NoteEditor() {
           )}
         </div>
       )}
+      {/* AI Suggestions */}
+      <div style={{ padding:isMobile?"8px 16px":"8px 40px", borderTop:"1px solid var(--border-light)" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+          <button
+            onClick={showAiPanel && aiSuggestions ? () => setShowAiPanel(v => !v) : fetchAiSuggestions}
+            disabled={aiLoading}
+            style={{
+              fontSize:12, padding:"5px 12px", borderRadius:8,
+              background: showAiPanel ? "linear-gradient(135deg, #8B5CF6, #6366F1)" : "var(--bg-card)",
+              color: showAiPanel ? "#fff" : "var(--text-muted)",
+              border: showAiPanel ? "none" : "1px solid var(--border)",
+              cursor: aiLoading ? "wait" : "pointer", fontFamily:"inherit",
+              display:"flex", alignItems:"center", gap:6,
+              transition: "all .2s",
+            }}
+          >
+            {aiLoading && <span style={{ display:"inline-block", width:12, height:12, border:"2px solid var(--text-faint)", borderTopColor:"transparent", borderRadius:"50%", animation:"spin .6s linear infinite" }}/>}
+            {t.aiSuggest || "AI Suggestions"}
+          </button>
+          {showAiPanel && aiSuggestions && (
+            <button onClick={fetchAiSuggestions} disabled={aiLoading}
+              style={{ fontSize:11, background:"transparent", border:"none", color:"var(--text-faint)", cursor:"pointer", fontFamily:"inherit" }}>
+              {t.aiRefresh || "Refresh"}
+            </button>
+          )}
+        </div>
+        {showAiPanel && aiSuggestions && (
+          <div style={{ display:"flex", gap:isMobile?16:28, flexWrap:"wrap", marginTop:10, paddingBottom:6 }}>
+            {/* Suggested connections */}
+            {aiSuggestions.connections.length > 0 && (
+              <div style={s.toolSec}>
+                <div style={{ ...s.toolLbl, display:"flex", alignItems:"center", gap:4 }}>
+                  <span style={{ fontSize:13 }}>{"\u{1F517}"}</span> {t.aiConnections || "Suggested connections"}
+                </div>
+                <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                  {aiSuggestions.connections.map(({ note: n, score }) => (
+                    <button key={n.id} onClick={()=>openNote(n)} style={{
+                      fontSize:12, padding:"4px 10px", borderRadius:6,
+                      background:"linear-gradient(135deg, #8B5CF622, #6366F122)",
+                      color:"#8B5CF6", border:"1px solid #8B5CF633",
+                      cursor:"pointer", fontFamily:"inherit",
+                      display:"flex", alignItems:"center", gap:4,
+                    }}>
+                      {n.title || t.listNoTitle}
+                      <span style={{ fontSize:9, opacity:.6 }}>{Math.round(score*100)}%</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {/* Suggested tags */}
+            {aiSuggestions.tags.length > 0 && (
+              <div style={s.toolSec}>
+                <div style={{ ...s.toolLbl, display:"flex", alignItems:"center", gap:4 }}>
+                  <span style={{ fontSize:13 }}>{"\u{1F3F7}\uFE0F"}</span> {t.aiTags || "Suggested tags"}
+                </div>
+                <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                  {aiSuggestions.tags.map(({ tag, fromNotes }) => (
+                    <button key={tag} onClick={() => { toggleTag(tag); setAiSuggestions(prev => prev ? { ...prev, tags: prev.tags.filter(t => t.tag !== tag) } : prev); }}
+                      style={{
+                        fontSize:12, padding:"3px 10px", borderRadius:6,
+                        background:"linear-gradient(135deg, #10B98122, #0EA5E922)",
+                        color:"#10B981", border:"1px solid #10B98133",
+                        cursor:"pointer", fontFamily:"inherit",
+                      }}
+                      title={fromNotes.slice(0, 3).join(", ")}>
+                      + {tag}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {aiSuggestions.connections.length === 0 && aiSuggestions.tags.length === 0 && (
+              <div style={{ fontSize:12, color:"var(--text-faint)", padding:"4px 0" }}>
+                {t.aiNoSuggestions || "No suggestions found — try adding more content."}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
