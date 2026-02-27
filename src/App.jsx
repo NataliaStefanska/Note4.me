@@ -13,6 +13,7 @@ import HelpModal from "./components/HelpModal";
 import Sidebar from "./components/Sidebar";
 import MobileNav from "./components/MobileNav";
 import InstallPrompt from "./components/InstallPrompt";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 import NotesList from "./views/NotesList";
 // Code splitting: lazy load heavier views
@@ -143,15 +144,17 @@ export default function App() {
           </div>
         )}
 
-        <Suspense fallback={<div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"50vh", color:"var(--text-faint)", fontSize:13 }}>Loading...</div>}>
-          <Routes>
-            <Route path="/" element={<NotesList />} />
-            <Route path="/editor" element={<NoteEditor key={active?.id} />} />
-            <Route path="/tasks" element={<TasksPage />} />
-            <Route path="/graph" element={<GraphView />} />
-            <Route path="/settings" element={<SettingsView />} />
-          </Routes>
-        </Suspense>
+        <ErrorBoundary>
+          <Suspense fallback={<div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"50vh", color:"var(--text-faint)", fontSize:13 }}>Loading...</div>}>
+            <Routes>
+              <Route path="/" element={<NotesList />} />
+              <Route path="/editor" element={<NoteEditor key={active?.id} />} />
+              <Route path="/tasks" element={<TasksPage />} />
+              <Route path="/graph" element={<GraphView />} />
+              <Route path="/settings" element={<SettingsView />} />
+            </Routes>
+          </Suspense>
+        </ErrorBoundary>
       </div>
 
       {/* Help button (desktop only) */}

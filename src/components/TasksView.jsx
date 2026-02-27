@@ -7,8 +7,8 @@ function DueBadge({ dueDate, done }) {
   const today = new Date().toISOString().split("T")[0];
   const overdue = !done && dueDate < today;
   const isToday = dueDate === today;
-  const color = overdue ? "#EF4444" : isToday ? "#D97706" : "#A8A29E";
-  const bg = overdue ? "#FEF2F2" : isToday ? "#FFFBEB" : "transparent";
+  const color = overdue ? "#EF4444" : isToday ? "#D97706" : "var(--text-faint)";
+  const bg = overdue ? "#EF444418" : isToday ? "#D9770618" : "transparent";
   const label = overdue ? "\u26A0" : isToday ? "\u23F0" : "";
   return (
     <span style={{ fontSize:10, color, background:bg, borderRadius:4, padding:"1px 5px", whiteSpace:"nowrap" }}>
@@ -104,7 +104,7 @@ export default function TasksView({ notes, color, allTags, onOpenNote, onCreate,
             </div>
             <div style={{ flex:1, minWidth:0 }}>
               <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                <span style={{ fontSize:14, fontWeight:500, textDecoration:tk.done?"line-through":"none", color:tk.done?"#A8A29E":"#1C1917", flex:1 }}>{tk.text}</span>
+                <span style={{ fontSize:14, fontWeight:500, textDecoration:tk.done?"line-through":"none", color:tk.done?"var(--text-faint)":"var(--text-primary)", flex:1 }}>{tk.text}</span>
                 <DueBadge dueDate={tk.dueDate} done={tk.done}/>
                 <DueDatePicker value={tk.dueDate||""} onChange={v => tk.standalone ? onSetStandaloneDueDate?.(tk.id, v) : onSetDueDate?.(tk.note?.id, tk.id, v)} t={t}/>
               </div>

@@ -45,6 +45,7 @@ export function AppProvider({ children }) {
   const [dateTo,      setDateTo]      = useState("");
   const [showDate,    setShowDate]    = useState(false);
   const [showArchived,setShowArchived]= useState(false);
+  const [filterFolder, setFilterFolder]= useState(null);
   const [syncStatus,  setSyncStatus]  = useState("idle");
   const [isOnline,    setIsOnline]    = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
   const [embedderStatus, setEmbedderStatus] = useState("idle");
@@ -67,6 +68,15 @@ export function AppProvider({ children }) {
   useEffect(() => { activeRef.current = active; });
   useEffect(() => { activeSpaceRef.current = activeSpace; });
   useEffect(() => { allNotesRef.current = allNotes; });
+
+  // Cleanup all timers on unmount
+  useEffect(() => {
+    return () => {
+      if (saveToastTimer.current) clearTimeout(saveToastTimer.current);
+      if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+      if (autoSaveStatusTimer.current) clearTimeout(autoSaveStatusTimer.current);
+    };
+  }, []);
 
   // Online/offline detection
   useEffect(() => {
@@ -164,12 +174,14 @@ export function AppProvider({ children }) {
   useEffect(() => {
     if (!user || authLoading) return;
     syncToFirestore();
+    return () => { if (syncTimer.current) clearTimeout(syncTimer.current); };
   }, [spaces, activeSpace, allNotes, standaloneTasks, lang, user, authLoading, syncToFirestore]);
 
   // Derived values
   const notes  = useMemo(() => allNotes[activeSpace] || [], [allNotes, activeSpace]);
   const space  = useMemo(() => spaces.find(sp => sp.id===activeSpace) || spaces[0], [spaces, activeSpace]);
   const allTags= useMemo(() => [...new Set([...notes.flatMap(n=>n.tags), ...(active ? active.tags : [])])], [notes, active]);
+  const allFolders = useMemo(() => [...new Set(notes.map(n=>n.folder).filter(Boolean))].sort(), [notes]);
   const staleN = useMemo(() => notes.filter(n=>!n.archived&&daysSince(n.lastOpened)>=30).length, [notes]);
   const archivedN = useMemo(() => notes.filter(n=>n.archived).length, [notes]);
 
@@ -244,12 +256,13 @@ export function AppProvider({ children }) {
       .filter(n => {
         const ma = showArchived ? !!n.archived : !n.archived;
         const mt = filterTag ? n.tags.includes(filterTag) : true;
+        const mfl = filterFolder ? (n.folder||"") === filterFolder : true;
         const mf = dateFrom ? n.updatedAt>=dateFrom : true;
         const mtd= dateTo   ? n.updatedAt<=dateTo   : true;
-        return ma&&mt&&mf&&mtd;
+        return ma&&mt&&mfl&&mf&&mtd;
       })
       .sort((a,b)=>sortOrder==="desc"?b.updatedAt.localeCompare(a.updatedAt):a.updatedAt.localeCompare(b.updatedAt));
-  }, [search, fuseIndex, notes, showArchived, filterTag, dateFrom, dateTo, sortOrder]);
+  }, [search, fuseIndex, notes, showArchived, filterTag, filterFolder, dateFrom, dateTo, sortOrder]);
 
   const useSemanticFallback = search.trim().length >= 3 && textFiltered.length === 0 && embedderStatus === "ready";
 
@@ -273,14 +286,20 @@ export function AppProvider({ children }) {
     ? semanticResults.filter(n => {
         const ma = showArchived ? !!n.archived : !n.archived;
         const mt = filterTag ? n.tags.includes(filterTag) : true;
+        const mfl = filterFolder ? (n.folder||"") === filterFolder : true;
         const mf = dateFrom ? n.updatedAt>=dateFrom : true;
         const mtd= dateTo   ? n.updatedAt<=dateTo   : true;
-        return ma&&mt&&mf&&mtd;
+        return ma&&mt&&mfl&&mf&&mtd;
       })
-    : textFiltered, [useSemanticFallback, semanticResults, textFiltered, showArchived, filterTag, dateFrom, dateTo]);
+    : textFiltered, [useSemanticFallback, semanticResults, textFiltered, showArchived, filterTag, filterFolder, dateFrom, dateTo]);
 
   // Actions
-  function switchSpace(id) { setActiveSpace(id); setActive(null); setFilterTag(null); setSearch(""); setShowDrop(false); setShowArchived(false); }
+  function switchSpace(id) { setActiveSpace(id); setActive(null); setFilterTag(null); setFilterFolder(null); setSearch(""); setShowDrop(false); setShowArchived(false); }
+  function setNoteFolder(noteId, folder) {
+    const val = folder || "";
+    setAllNotes(p=>({...p,[activeSpace]:(p[activeSpace]||[]).map(n=>n.id===noteId?{...n,folder:val}:n)}));
+    if (active && active.id===noteId) setActive(prev=>({...prev,folder:val}));
+  }
   function createNote()   { setShowIntent(true); }
   function createTask()   { setShowTask(true); }
   function quickCapture() {
@@ -567,6 +586,7 @@ export function AppProvider({ children }) {
     search, setSearch, filterTag, setFilterTag, newTask, setNewTask,
     sortOrder, setSortOrder, dateFrom, setDateFrom, dateTo, setDateTo,
     showDate, setShowDate, showArchived, setShowArchived,
+    filterFolder, setFilterFolder,
     syncStatus, isOnline, embedderStatus, useSemanticFallback,
     // Feature 5: overdue
     overdueTasks,
@@ -579,12 +599,12 @@ export function AppProvider({ children }) {
     // refs
     titleRef, editorRef,
     // derived
-    notes, space, allTags, staleN, archivedN, filtered,
+    notes, space, allTags, allFolders, staleN, archivedN, filtered,
     // actions
     switchSpace, createNote, createTask, quickCapture, handleIntent, handleTaskIntent,
     openNote, saveNote, triggerAutoSave, toggleTask, toggleTaskInList, toggleStandaloneTask,
     addTask, removeTask, setTaskDueDate, setStandaloneTaskDueDate,
-    handleLinkSelect, toggleTag, reorderNotes, reorderTasks, deleteNote, archiveNote, unarchiveNote,
+    handleLinkSelect, toggleTag, setNoteFolder, reorderNotes, reorderTasks, deleteNote, archiveNote, unarchiveNote,
     exportNoteMd,
   };
 

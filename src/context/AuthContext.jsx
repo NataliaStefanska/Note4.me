@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { loginWithGoogle, logout, onAuth, loadAllData } from "../firebase";
+import { loginWithGoogle, logout, onAuth } from "../firebase";
 
 const AuthContext = createContext(null);
 
@@ -9,23 +9,10 @@ export function useAuth() { return useContext(AuthContext); }
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [initialData, setInitialData] = useState(null);
 
   useEffect(() => {
-    const unsub = onAuth(async (firebaseUser) => {
-      if (firebaseUser) {
-        setUser(firebaseUser);
-        try {
-          const data = await loadAllData(firebaseUser.uid);
-          setInitialData(data);
-        } catch (err) {
-          console.warn("Firebase load failed, using local data:", err?.message || err);
-          setInitialData(null);
-        }
-      } else {
-        setUser(null);
-        setInitialData(null);
-      }
+    const unsub = onAuth((firebaseUser) => {
+      setUser(firebaseUser || null);
       setAuthLoading(false);
     });
     return unsub;
@@ -39,6 +26,6 @@ export function AuthProvider({ children }) {
     try { await logout(); } catch (e) { console.error("Logout failed:", e); }
   }, []);
 
-  const value = { user, authLoading, initialData, handleLogin, handleLogout };
+  const value = { user, authLoading, handleLogin, handleLogout };
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
