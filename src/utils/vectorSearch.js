@@ -65,8 +65,12 @@ export async function indexNotes(notes) {
     const text = noteToText(note);
     const cached = cache.get(note.id);
     if (cached && cached.text === text) continue;
-    const embedding = await embed(text);
-    cache.set(note.id, { text, embedding });
+    try {
+      const embedding = await embed(text);
+      cache.set(note.id, { text, embedding });
+    } catch (err) {
+      console.warn("Failed to embed note:", note.id, err);
+    }
   }
 }
 

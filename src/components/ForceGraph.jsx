@@ -115,7 +115,7 @@ export default function ForceGraph({ notes, allNotes, spaceColor, onOpenNote, sh
     return () => {
       window.removeEventListener("mousemove",mv);
       window.removeEventListener("mouseup",up);
-      window.removeEventListener("touchmove",mv);
+      window.removeEventListener("touchmove",mv,{passive:false});
       window.removeEventListener("touchend",up);
     };
   }, []);
@@ -159,14 +159,14 @@ export default function ForceGraph({ notes, allNotes, spaceColor, onOpenNote, sh
       </defs>
       <rect width="100%" height="100%" fill="url(#gbg)"/>
       {/* Links */}
-      {links.current.map((l,i) => {
+      {links.current.map((l) => {
         const a=nodes.current.find(n=>n.id===l.s), b=nodes.current.find(n=>n.id===l.t);
         if (!a||!b) return null;
         const hot=hov&&(l.s===hov||l.t===hov);
         const isNoteLink = l.kind==="link";
         const tn=nodes.current.find(n=>n.kind==="tag"&&(n.id===l.s||n.id===l.t));
         const lc=isNoteLink?spaceColor:(tn?tn.color:spaceColor);
-        return <line key={i} x1={a.x} y1={a.y} x2={b.x} y2={b.y}
+        return <line key={`${l.s}-${l.t}-${l.kind}`} x1={a.x} y1={a.y} x2={b.x} y2={b.y}
           stroke={hot?lc+"EE":lc+(isNoteLink?"55":"30")}
           strokeWidth={isNoteLink?(hot?3:1.5):(hot?2:.8)}
           strokeDasharray={isNoteLink?undefined:"none"}

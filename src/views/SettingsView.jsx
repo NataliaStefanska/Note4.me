@@ -72,6 +72,13 @@ export default function SettingsView() {
           alert(lang === "pl" ? "Nieprawidłowa struktura przestrzeni" : "Invalid spaces structure");
           return;
         }
+        // Validate individual note objects
+        for (const [spaceId, notes] of Object.entries(data.allNotes)) {
+          if (!Array.isArray(notes) || !notes.every(n => n && typeof n.id === "string" && typeof n.title === "string" && Array.isArray(n.tags) && Array.isArray(n.tasks))) {
+            alert(lang === "pl" ? `Nieprawidłowa struktura notatek w przestrzeni ${spaceId}` : `Invalid notes structure in space ${spaceId}`);
+            return;
+          }
+        }
         setSpaces(data.spaces);
         setAllNotes(data.allNotes);
         if (data.standaloneTasks && typeof data.standaloneTasks === "object") setStandaloneTasks(data.standaloneTasks);

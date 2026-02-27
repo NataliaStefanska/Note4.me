@@ -68,6 +68,15 @@ export function AppProvider({ children }) {
   useEffect(() => { activeSpaceRef.current = activeSpace; });
   useEffect(() => { allNotesRef.current = allNotes; });
 
+  // Cleanup all timers on unmount
+  useEffect(() => {
+    return () => {
+      if (saveToastTimer.current) clearTimeout(saveToastTimer.current);
+      if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+      if (autoSaveStatusTimer.current) clearTimeout(autoSaveStatusTimer.current);
+    };
+  }, []);
+
   // Online/offline detection
   useEffect(() => {
     const goOnline = () => setIsOnline(true);
@@ -164,6 +173,7 @@ export function AppProvider({ children }) {
   useEffect(() => {
     if (!user || authLoading) return;
     syncToFirestore();
+    return () => { if (syncTimer.current) clearTimeout(syncTimer.current); };
   }, [spaces, activeSpace, allNotes, standaloneTasks, lang, user, authLoading, syncToFirestore]);
 
   // Derived values
