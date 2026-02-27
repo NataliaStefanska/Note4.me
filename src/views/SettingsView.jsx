@@ -159,14 +159,33 @@ export default function SettingsView() {
               {t["sync_"+syncStatus] || syncStatus}
             </span>
           </div>
-          <div style={{ fontSize:12, color:"#A8A29E", marginTop:6 }}>{user.email}</div>
+          <div style={{ fontSize:12, color:"var(--text-faint)", marginTop:6 }}>{user.email}</div>
+          <div style={{ fontSize:12, color:"var(--text-muted)", marginTop:6, lineHeight:1.6 }}>
+            {t.syncExplain}
+          </div>
+        </div>
+
+        {/* Install app */}
+        <div style={s.setSection}>
+          <div style={s.setLabel}>{t.setInstall || "Install App"}</div>
+          <div style={{ fontSize:12, color:"var(--text-muted)", marginTop:6, lineHeight:1.6 }}>
+            {t.installSettingsDesc}
+          </div>
+          <div style={{ fontSize:12, color:"var(--text-muted)", marginTop:8, lineHeight:1.6, background:"var(--bg-card)", borderRadius:8, padding:"10px 14px" }}>
+            <div style={{ fontWeight:600, color:"var(--text-primary)", marginBottom:4, fontSize:12 }}>
+              {t.installHowTo}
+            </div>
+            <div>{t.installStep1}</div>
+            <div>{t.installStep2}</div>
+            <div>{t.installStep3}</div>
+          </div>
         </div>
 
         {/* About */}
         <div style={s.setSection}>
           <div style={s.setLabel}>{t.setAbout}</div>
-          <div style={{ fontSize:13, color:"#78716C", lineHeight:1.6, marginTop:4 }}>{t.setAboutDesc}</div>
-          <div style={{ fontSize:11, color:"#A8A29E", marginTop:8 }}>v1.1.0</div>
+          <div style={{ fontSize:13, color:"var(--text-muted)", lineHeight:1.6, marginTop:4 }}>{t.setAboutDesc}</div>
+          <div style={{ fontSize:11, color:"var(--text-faint)", marginTop:8 }}>v1.2.0</div>
         </div>
       </div>
     </div>

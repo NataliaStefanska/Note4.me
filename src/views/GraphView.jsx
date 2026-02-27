@@ -71,7 +71,7 @@ export default function GraphView() {
         </button>
       </div>
       <ForceGraph notes={graphNotes} allNotes={notes} spaceColor={space.color} onOpenNote={handleOpenNote} showOrphans={showOrphans} t={t}/>
-      <div style={{ position:"absolute", bottom:80, left:"50%", transform:"translateX(-50%)", color:"#44403C", fontSize:11, whiteSpace:"nowrap" }}>
+      <div style={{ position:"absolute", bottom:isMobile?12:20, left:"50%", transform:"translateX(-50%)", color:"#44403C", fontSize:11, whiteSpace:"nowrap" }}>
         {isMobile?t.graphHintM:t.graphHintD}
       </div>
     </div>

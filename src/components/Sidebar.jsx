@@ -6,7 +6,7 @@ import { NAV_ITEMS } from "./navItems";
 export default function Sidebar({ onClose }) {
   const {
     t, space, spaces, activeSpace, filterTag, setFilterTag,
-    showDrop, setShowDrop, showArchived, setShowArchived,
+    showArchived, setShowArchived,
     allTags, archivedN, staleN, syncStatus, isOnline,
     switchSpace, setShowSpaceMgr, overdueTasks,
   } = useApp();
@@ -21,6 +21,12 @@ export default function Sidebar({ onClose }) {
     if (onClose) onClose();
   }
 
+  function handleSwitchSpace(spId) {
+    switchSpace(spId);
+    navigate("/");
+    if (onClose) onClose();
+  }
+
   return (
     <>
       {onClose && (
@@ -29,28 +35,7 @@ export default function Sidebar({ onClose }) {
           <button style={s.iconBtn} onClick={onClose}>{"\u2715"}</button>
         </div>
       )}
-      <div style={s.label}>{t.sbSpace}</div>
-      <div style={{ position:"relative" }}>
-        <button style={{ ...s.spacePill, borderColor:space.color+"88" }} onClick={()=>setShowDrop(v=>!v)}>
-          <span>{space.emoji}</span><span style={{ flex:1, textAlign:"left", fontSize:13, fontWeight:500 }}>{space.name}</span><span style={{ color:"#57534E", fontSize:11 }}>{"\u25BE"}</span>
-        </button>
-        {showDrop && (
-          <div style={s.drop}>
-            {spaces.map(sp=>(
-              <button key={sp.id} style={{ ...s.dropItem, ...(sp.id===activeSpace?{background:"#292524",color:"#E7E5E4"}:{}) }}
-                onClick={()=>{ switchSpace(sp.id); navigate("/"); if(onClose)onClose(); }}>
-                <span style={{ width:8,height:8,borderRadius:"50%",background:sp.color,flexShrink:0,display:"inline-block" }}/>
-                <span>{sp.emoji}</span>
-                <span style={{ flex:1, textAlign:"left" }}>{sp.name}</span>
-                {sp.id===activeSpace && <span style={{ color:space.color, fontSize:12 }}>{"\u2713"}</span>}
-              </button>
-            ))}
-            <div style={s.div}/>
-            <button style={s.dropManage} onClick={()=>{ setShowDrop(false); setShowSpaceMgr(true); if(onClose)onClose(); }}>{t.sbManage}</button>
-          </div>
-        )}
-      </div>
-      <div style={s.div}/>
+      {/* Navigation */}
       {sidebarNav.map(item=>(
         <button key={item.id} style={{ ...s.navBtn, ...(location.pathname===item.path?s.navActive:{}) }}
           onClick={()=>handleNav(item.path)}>
@@ -58,6 +43,32 @@ export default function Sidebar({ onClose }) {
         </button>
       ))}
       <div style={s.div}/>
+      {/* Spaces - shown directly */}
+      <div style={s.label}>{t.sbSpace}</div>
+      <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
+        {spaces.map(sp=>{
+          const isActive = sp.id === activeSpace;
+          return (
+            <button key={sp.id}
+              style={{
+                ...s.spaceItem,
+                ...(isActive ? { background:sp.color+"18", color:sp.color, borderColor:sp.color+"44" } : {}),
+              }}
+              onClick={()=>handleSwitchSpace(sp.id)}>
+              <span style={{ width:8, height:8, borderRadius:"50%", background:sp.color, flexShrink:0 }}/>
+              <span>{sp.emoji}</span>
+              <span style={{ flex:1, textAlign:"left", fontSize:13, fontWeight:isActive?600:400 }}>{sp.name}</span>
+              {isActive && <span style={{ color:sp.color, fontSize:11 }}>{"\u2713"}</span>}
+            </button>
+          );
+        })}
+        <button style={s.addSpaceBtn} onClick={()=>{ setShowSpaceMgr(true); if(onClose)onClose(); }}>
+          <span style={{ fontSize:14, lineHeight:1 }}>+</span>
+          <span>{t.smNew}</span>
+        </button>
+      </div>
+      <div style={s.div}/>
+      {/* Tags */}
       <div style={s.label}>{t.sbTags}</div>
       <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
         {[ALL,...allTags].map(tag=>{
@@ -72,7 +83,7 @@ export default function Sidebar({ onClose }) {
       </div>
       <div style={{ flex:1 }}/>
       {archivedN>0 && (
-        <button style={{ ...s.tagPill, color:showArchived?"#E7E5E4":"#78716C", background:showArchived?"#292524":"transparent" }}
+        <button style={{ ...s.tagPill, color:showArchived?"var(--text-primary)":"var(--text-muted)", background:showArchived?"var(--bg-card)":"transparent" }}
           onClick={()=>{ setShowArchived(v=>!v); navigate("/"); if(onClose)onClose(); }}>
           {"\u{1F4E6}"} {archivedN} {t.sbArchived}
         </button>
@@ -86,7 +97,7 @@ export default function Sidebar({ onClose }) {
       {staleN>0 && <div style={s.staleHint}>{"\u23F3"} {staleN} {staleN===1?t.sbStale1:t.sbStaleN}</div>}
       <div style={{ display:"flex", alignItems:"center", gap:6, padding:"4px 6px" }}>
         <span style={{ width:6,height:6,borderRadius:"50%",background:!isOnline?"#78716C":syncStatus==="synced"?"#10B981":syncStatus==="saving"?"#F59E0B":"#EF4444",flexShrink:0 }}/>
-        <span style={{ fontSize:11, color:"#57534E" }}>
+        <span style={{ fontSize:11, color:"var(--text-faint)" }}>
           {!isOnline ? (t.sbOffline || "Offline") : syncStatus==="synced"?t.sbSynced:syncStatus==="saving"?"...":(syncStatus==="error"?"!":t.sbSynced)}
         </span>
       </div>
