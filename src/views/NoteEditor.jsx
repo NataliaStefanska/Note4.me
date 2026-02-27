@@ -30,6 +30,8 @@ export default function NoteEditor() {
   const [aiLoading, setAiLoading] = useState(false);
   const [showAiPanel, setShowAiPanel] = useState(false);
   const [showVersions, setShowVersions] = useState(false);
+  const [headings, setHeadings] = useState([]);
+  const [showToc, setShowToc] = useState(false);
   const [showFolderPicker, setShowFolderPicker] = useState(false);
   const [newFolder, setNewFolder] = useState("");
   const [showRefInput, setShowRefInput] = useState(false);
@@ -67,6 +69,22 @@ export default function NoteEditor() {
     setLinkSearch(null);
     setAutoSaveStatus(null);
     navigate("/");
+  }
+
+  function scrollToHeading(pos) {
+    const ed = editorRef.current;
+    if (!ed) return;
+    ed.commands.focus(pos);
+    // scroll the heading DOM node into view
+    try {
+      const dom = ed.view.domAtPos(pos);
+      const node = dom.node.nodeType === 1 ? dom.node : dom.node.parentElement;
+      const heading = node.closest("h1, h2, h3") || node;
+      heading.scrollIntoView({ behavior: "smooth", block: "start" });
+    } catch {
+      // fallback
+      ed.commands.scrollIntoView();
+    }
   }
 
   const spaceNotes = allNotes[activeSpace] || [];
@@ -107,29 +125,90 @@ export default function NoteEditor() {
           </button>
         </div>
       </div>
-      <div style={{ flex:1, padding:"20px", display:"flex", flexDirection:"column", gap:12, overflow:"hidden" }}>
-        <input ref={titleRef} style={s.titleInp} value={active.title} placeholder={t.edTitlePh} onChange={e=>{setActive(p=>({...p,title:e.target.value}));triggerAutoSave();}}/>
-        <div ref={contentWrapRef} style={{ position:"relative", flex:1, minHeight:isMobile?160:220, display:"flex", flexDirection:"column" }}>
-          <TiptapEditor
-            key={active.id}
-            content={contentToHtml(active.content)}
-            placeholder={t.edContentPh}
-            editorRef={editorRef}
-            wrapRef={contentWrapRef}
-            onUpdate={triggerAutoSave}
-            onLinkSearch={setLinkSearch}
-            isMobile={isMobile}
-          />
-          {linkSearch && (
-            <LinkAutocomplete
-              notes={(allNotes[activeSpace]||[]).filter(n=>n.id!==active.id && !n.archived)}
-              query={linkSearch.query}
-              pos={linkSearch.pos}
-              onSelect={handleLinkSelect}
-              onClose={()=>setLinkSearch(null)}
-              t={t}/>
-          )}
+      <div style={{ flex:1, padding:"20px", display:"flex", flexDirection:isMobile?"column":"row", gap:0, overflow:"hidden" }}>
+        <div style={{ flex:1, minWidth:0, display:"flex", flexDirection:"column", gap:12, overflow:"hidden" }}>
+          <input ref={titleRef} style={s.titleInp} value={active.title} placeholder={t.edTitlePh} onChange={e=>{setActive(p=>({...p,title:e.target.value}));triggerAutoSave();}}/>
+          <div ref={contentWrapRef} style={{ position:"relative", flex:1, minHeight:isMobile?160:220, display:"flex", flexDirection:"column" }}>
+            <TiptapEditor
+              key={active.id}
+              content={contentToHtml(active.content)}
+              placeholder={t.edContentPh}
+              editorRef={editorRef}
+              wrapRef={contentWrapRef}
+              onUpdate={triggerAutoSave}
+              onLinkSearch={setLinkSearch}
+              onHeadingsChange={setHeadings}
+              isMobile={isMobile}
+            />
+            {linkSearch && (
+              <LinkAutocomplete
+                notes={(allNotes[activeSpace]||[]).filter(n=>n.id!==active.id && !n.archived)}
+                query={linkSearch.query}
+                pos={linkSearch.pos}
+                onSelect={handleLinkSelect}
+                onClose={()=>setLinkSearch(null)}
+                t={t}/>
+            )}
+          </div>
         </div>
+        {/* Table of Contents — desktop: right panel, mobile: toggle */}
+        {headings.length > 0 && (
+          isMobile ? (
+            <div style={{ borderTop:"1px solid var(--border-light)", paddingTop:8, marginTop:8 }}>
+              <button onClick={()=>setShowToc(v=>!v)} style={{
+                background:"transparent", border:"none", color:"var(--text-muted)", fontSize:11,
+                cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", gap:4,
+              }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="3" y1="6" x2="15" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="18" y2="18"/>
+                </svg>
+                {t.tocTitle} ({headings.length})
+                <span style={{ fontSize:10, transform:showToc?"rotate(180deg)":"none", transition:"transform .15s" }}>{"\u25BC"}</span>
+              </button>
+              {showToc && (
+                <div style={{ display:"flex", flexDirection:"column", gap:1, marginTop:6, paddingLeft:4 }}>
+                  {headings.map((h,i)=>(
+                    <button key={i} onClick={()=>scrollToHeading(h.pos)} style={{
+                      background:"transparent", border:"none", cursor:"pointer", fontFamily:"inherit",
+                      textAlign:"left", padding:"4px 0", fontSize:12, color:"var(--text-muted)",
+                      paddingLeft:(h.level-1)*12, overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis",
+                      transition:"color .1s",
+                    }}
+                    onMouseEnter={e=>{e.currentTarget.style.color=space.color;}}
+                    onMouseLeave={e=>{e.currentTarget.style.color="var(--text-muted)";}}>
+                      {h.text || t.listNoTitle}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{
+              width:180, flexShrink:0, paddingLeft:16, marginLeft:8,
+              borderLeft:"1px solid var(--border-light)",
+              overflowY:"auto", display:"flex", flexDirection:"column", gap:1,
+            }}>
+              <div style={{ fontSize:10, color:"var(--text-faint)", letterSpacing:".1em", textTransform:"uppercase", marginBottom:6 }}>
+                {t.tocTitle}
+              </div>
+              {headings.map((h,i)=>(
+                <button key={i} onClick={()=>scrollToHeading(h.pos)} style={{
+                  background:"transparent", border:"none", cursor:"pointer", fontFamily:"inherit",
+                  textAlign:"left", padding:"4px 6px", borderRadius:4,
+                  fontSize:h.level===1?13:12, fontWeight:h.level===1?600:h.level===2?500:400,
+                  color:"var(--text-muted)",
+                  paddingLeft:h.level===1?6:h.level===2?16:26,
+                  overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis",
+                  lineHeight:1.4, transition:"all .1s",
+                }}
+                onMouseEnter={e=>{e.currentTarget.style.background=space.color+"12";e.currentTarget.style.color=space.color;}}
+                onMouseLeave={e=>{e.currentTarget.style.background="transparent";e.currentTarget.style.color="var(--text-muted)";}}>
+                  {h.text || t.listNoTitle}
+                </button>
+              ))}
+            </div>
+          )
+        )}
       </div>
       <div style={{ display:"flex", gap:isMobile?16:28, padding:isMobile?"12px 16px":"14px 40px", borderTop:"1px solid var(--border)", flexWrap:"wrap" }}>
         <div style={s.toolSec}>
