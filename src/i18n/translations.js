@@ -58,6 +58,10 @@ export const T = {
     bulkSelect:"Zaznacz", bulkSelectAll:"Wszystkie", bulkDeselectAll:"Odznacz",
     bulkArchive:"Archiwizuj", bulkDelete:"Usu\u0144 zaznaczone", bulkCount:"zaznaczono",
     exportNoteMd:"Eksport .md", noteVersions:"Historia wersji", versionRestore:"Przywr\u00F3\u0107", versionDate:"Wersja z", noVersions:"Brak historii zmian",
+    installTitle:"Zainstaluj Note.io", installDesc:"Dodaj Note.io do ekranu g\u0142\u00F3wnego, by mie\u0107 szybki dost\u0119p i tryb offline.",
+    installBtn:"Zainstaluj", installDismiss:"Nie teraz",
+    installIos:"Aby zainstalowa\u0107: naci\u015Bnij", installIosShare:"Udost\u0119pnij", installIosThen:"a potem \u201EDodaj na ekran pocz\u0105tkowy\u201D",
+    updateAvailable:"Nowa wersja dost\u0119pna!", updateBtn:"Od\u015Bwie\u017C",
   },
   en: {
     loginTagline:"Your notes. Your rules.", loginSync:"Cross-device synchronization",
@@ -118,5 +122,9 @@ export const T = {
     bulkSelect:"Select", bulkSelectAll:"Select all", bulkDeselectAll:"Deselect",
     bulkArchive:"Archive selected", bulkDelete:"Delete selected", bulkCount:"selected",
     exportNoteMd:"Export .md", noteVersions:"Version history", versionRestore:"Restore", versionDate:"Version from", noVersions:"No version history",
+    installTitle:"Install Note.io", installDesc:"Add Note.io to your home screen for quick access and offline mode.",
+    installBtn:"Install", installDismiss:"Not now",
+    installIos:"To install: tap", installIosShare:"Share", installIosThen:"then \u201CAdd to Home Screen\u201D",
+    updateAvailable:"New version available!", updateBtn:"Refresh",
   },
 };

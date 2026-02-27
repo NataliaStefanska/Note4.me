@@ -12,6 +12,7 @@ import SpaceManager from "./components/SpaceManager";
 import HelpModal from "./components/HelpModal";
 import Sidebar from "./components/Sidebar";
 import MobileNav from "./components/MobileNav";
+import InstallPrompt from "./components/InstallPrompt";
 
 import NotesList from "./views/NotesList";
 // Code splitting: lazy load heavier views
@@ -167,6 +168,9 @@ export default function App() {
 
       {/* Mobile bottom nav */}
       {isMobile && !isEditor && <MobileNav />}
+
+      {/* PWA install prompt */}
+      <InstallPrompt t={t} />
     </div>
   );
 }
