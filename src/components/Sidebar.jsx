@@ -6,8 +6,9 @@ import { NAV_ITEMS } from "./navItems";
 export default function Sidebar({ onClose }) {
   const {
     t, space, spaces, activeSpace, filterTag, setFilterTag,
+    filterFolder, setFilterFolder,
     showArchived, setShowArchived,
-    allTags, archivedN, staleN, syncStatus, isOnline,
+    allTags, allFolders, archivedN, staleN, syncStatus, isOnline,
     switchSpace, setShowSpaceMgr, overdueTasks,
   } = useApp();
   const navigate = useNavigate();
@@ -44,7 +45,11 @@ export default function Sidebar({ onClose }) {
       ))}
       <div style={s.div}/>
       {/* Spaces - shown directly */}
-      <div style={s.label}>{t.sbSpace}</div>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 6px" }}>
+        <span style={{ fontSize:10, color:"#57534E", letterSpacing:".1em", textTransform:"uppercase" }}>{t.sbSpace}</span>
+        <button style={{ background:"transparent", border:"none", color:"#57534E", fontSize:11, cursor:"pointer", padding:"2px 4px" }}
+          onClick={()=>{ setShowSpaceMgr(true); if(onClose)onClose(); }} title={t.sbManage}>{"\u2699"}</button>
+      </div>
       <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
         {spaces.map(sp=>{
           const isActive = sp.id === activeSpace;
@@ -81,6 +86,29 @@ export default function Sidebar({ onClose }) {
           );
         })}
       </div>
+      {/* Folders */}
+      {allFolders.length > 0 && (
+        <>
+          <div style={s.div}/>
+          <div style={s.label}>{t.sbFolders}</div>
+          <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
+            <button style={{ ...s.tagPill, ...(filterFolder===null?{background:space.color+"22",color:space.color}:{}) }}
+              onClick={()=>{ setFilterFolder(null); if(onClose)onClose(); }}>
+              {ALL}
+            </button>
+            {allFolders.map(f=>{
+              const a = filterFolder===f;
+              return (
+                <button key={f} style={{ ...s.tagPill, ...(a?{background:space.color+"22",color:space.color}:{}), display:"flex", alignItems:"center", gap:6 }}
+                  onClick={()=>{ setFilterFolder(a?null:f); if(onClose)onClose(); }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+                  {f}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
       <div style={{ flex:1 }}/>
       {archivedN>0 && (
         <button style={{ ...s.tagPill, color:showArchived?"var(--text-primary)":"var(--text-muted)", background:showArchived?"var(--bg-card)":"transparent" }}
