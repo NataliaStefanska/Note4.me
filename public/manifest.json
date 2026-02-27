@@ -1,0 +1,12 @@
+{
+  "name": "Note.io",
+  "short_name": "Note.io",
+  "description": "Smart note-taking app with AI-powered suggestions",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0C0A09",
+  "theme_color": "#0C0A09",
+  "icons": [
+    { "src": "/vite.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

@@ -20,6 +20,7 @@ export default function NoteEditor() {
     newTask, setNewTask, titleRef, editorRef,
     saveNote, triggerAutoSave, toggleTask, addTask, removeTask, setTaskDueDate, reorderTasks, toggleTag, openNote, handleLinkSelect,
     archiveNote, unarchiveNote, setShowDeleteConfirm,
+    noteVersions, restoreVersion, exportNoteMd,
   } = useApp();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
@@ -28,6 +29,7 @@ export default function NoteEditor() {
   const [aiSuggestions, setAiSuggestions] = useState(null); // { connections, tags } | null
   const [aiLoading, setAiLoading] = useState(false);
   const [showAiPanel, setShowAiPanel] = useState(false);
+  const [showVersions, setShowVersions] = useState(false);
 
   useEffect(() => {
     if (!active) navigate("/", { replace: true });
@@ -200,9 +202,9 @@ export default function NoteEditor() {
           )}
         </div>
       )}
-      {/* AI Suggestions button */}
+      {/* Actions bar: AI Suggestions, Version history, Export */}
       <div style={{ padding:isMobile?"8px 16px":"8px 40px", borderTop:"1px solid var(--border-light)" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
           <button
             onClick={fetchAiSuggestions}
             disabled={aiLoading}
@@ -218,9 +220,50 @@ export default function NoteEditor() {
             {aiLoading && <span style={{ display:"inline-block", width:12, height:12, border:"2px solid var(--text-faint)", borderTopColor:"transparent", borderRadius:"50%", animation:"spin .6s linear infinite" }}/>}
             {t.aiSuggest}
           </button>
+          <button onClick={()=>setShowVersions(v=>!v)} style={{
+            fontSize:12, padding:"5px 12px", borderRadius:8,
+            background:showVersions?"var(--bg-card)":"var(--bg-card)", color:"var(--text-muted)",
+            border:"1px solid var(--border)", cursor:"pointer", fontFamily:"inherit",
+          }}>
+            {t.noteVersions}
+          </button>
+          <button onClick={()=>exportNoteMd(active)} style={{
+            fontSize:12, padding:"5px 12px", borderRadius:8,
+            background:"var(--bg-card)", color:"var(--text-muted)",
+            border:"1px solid var(--border)", cursor:"pointer", fontFamily:"inherit",
+          }}>
+            {t.exportNoteMd}
+          </button>
           {aiNotReady && <span style={{ fontSize:11, color:"#F59E0B" }}>{t.aiNotReady}</span>}
         </div>
       </div>
+      {/* Version history panel */}
+      {showVersions && (
+        <div style={{ padding:isMobile?"8px 16px":"8px 40px", borderTop:"1px solid var(--border-light)" }}>
+          <div style={s.toolLbl}>{t.noteVersions}</div>
+          {(noteVersions[active.id] || []).length === 0 ? (
+            <div style={{ fontSize:12, color:"var(--text-faint)", padding:"8px 0" }}>{t.noVersions}</div>
+          ) : (
+            <div style={{ display:"flex", flexDirection:"column", gap:4, marginTop:6, maxHeight:200, overflowY:"auto" }}>
+              {(noteVersions[active.id] || []).map((v, i) => (
+                <div key={i} style={{ display:"flex", alignItems:"center", gap:10, padding:"6px 10px", borderRadius:6, background:"var(--bg-input)", border:"1px solid var(--border-light)" }}>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:12, fontWeight:500, color:"var(--text-primary)" }}>{t.versionDate} {new Date(v.savedAt).toLocaleString()}</div>
+                    <div style={{ fontSize:11, color:"var(--text-faint)", overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{v.title || t.listNoTitle}</div>
+                  </div>
+                  <button onClick={()=>{restoreVersion(active.id, v);setShowVersions(false);}} style={{
+                    fontSize:11, padding:"4px 10px", borderRadius:6,
+                    background:"transparent", border:"1px solid var(--border)",
+                    color:space.color, cursor:"pointer", fontFamily:"inherit", flexShrink:0,
+                  }}>
+                    {t.versionRestore}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       {/* AI Suggestions modal */}
       {showAiPanel && aiSuggestions && (
         <div style={m.overlay} onClick={() => setShowAiPanel(false)}>

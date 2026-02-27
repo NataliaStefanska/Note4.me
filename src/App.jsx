@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import { useApp } from "./context/AppContext";
 import { useIsMobile } from "./hooks/useIsMobile";
@@ -14,10 +14,11 @@ import Sidebar from "./components/Sidebar";
 import MobileNav from "./components/MobileNav";
 
 import NotesList from "./views/NotesList";
-import NoteEditor from "./views/NoteEditor";
-import TasksPage from "./views/TasksPage";
-import GraphView from "./views/GraphView";
-import SettingsView from "./views/SettingsView";
+// Code splitting: lazy load heavier views
+const NoteEditor = lazy(() => import("./views/NoteEditor"));
+const TasksPage = lazy(() => import("./views/TasksPage"));
+const GraphView = lazy(() => import("./views/GraphView"));
+const SettingsView = lazy(() => import("./views/SettingsView"));
 
 export default function App() {
   const {
@@ -141,13 +142,15 @@ export default function App() {
           </div>
         )}
 
-        <Routes>
-          <Route path="/" element={<NotesList />} />
-          <Route path="/editor" element={<NoteEditor key={active?.id} />} />
-          <Route path="/tasks" element={<TasksPage />} />
-          <Route path="/graph" element={<GraphView />} />
-          <Route path="/settings" element={<SettingsView />} />
-        </Routes>
+        <Suspense fallback={<div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"50vh", color:"var(--text-faint)", fontSize:13 }}>Loading...</div>}>
+          <Routes>
+            <Route path="/" element={<NotesList />} />
+            <Route path="/editor" element={<NoteEditor key={active?.id} />} />
+            <Route path="/tasks" element={<TasksPage />} />
+            <Route path="/graph" element={<GraphView />} />
+            <Route path="/settings" element={<SettingsView />} />
+          </Routes>
+        </Suspense>
       </div>
 
       {/* Help button (desktop only) */}

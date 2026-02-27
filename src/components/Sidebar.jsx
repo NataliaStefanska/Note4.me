@@ -8,7 +8,7 @@ export default function Sidebar({ onClose }) {
     t, space, spaces, activeSpace, filterTag, setFilterTag,
     showDrop, setShowDrop, showArchived, setShowArchived,
     allTags, archivedN, staleN, syncStatus, isOnline,
-    switchSpace, setShowSpaceMgr,
+    switchSpace, setShowSpaceMgr, overdueTasks,
   } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
@@ -75,6 +75,12 @@ export default function Sidebar({ onClose }) {
         <button style={{ ...s.tagPill, color:showArchived?"#E7E5E4":"#78716C", background:showArchived?"#292524":"transparent" }}
           onClick={()=>{ setShowArchived(v=>!v); navigate("/"); if(onClose)onClose(); }}>
           {"\u{1F4E6}"} {archivedN} {t.sbArchived}
+        </button>
+      )}
+      {overdueTasks.length>0 && (
+        <button style={{ ...s.tagPill, color:"#DC2626", background:"#FEE2E2", fontWeight:500, fontSize:11, display:"flex", alignItems:"center", gap:6 }}
+          onClick={()=>{ navigate("/tasks"); if(onClose)onClose(); }}>
+          <span style={{ width:8, height:8, borderRadius:"50%", background:"#EF4444", flexShrink:0 }}/> {overdueTasks.length} {t.overdueNotif}
         </button>
       )}
       {staleN>0 && <div style={s.staleHint}>{"\u23F3"} {staleN} {staleN===1?t.sbStale1:t.sbStaleN}</div>}
