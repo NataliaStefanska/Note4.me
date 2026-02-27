@@ -5,20 +5,17 @@ import {
   collection, getDocs, writeBatch,
 } from "firebase/firestore";
 
-// Firebase config from environment variables (required)
+// Firebase config — env vars override defaults (web API keys are public by design;
+// security is enforced by Firestore rules, not by hiding the key)
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyDTekf1c-2NqtNyyuIpmHVK6OvLAl6536Q",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "note4-me.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "note4-me",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "note4-me.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "721213164255",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:721213164255:web:61d90785d4569ae98a776a",
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-SXC6RXJYVG",
 };
-
-if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
-  console.error("Missing required Firebase environment variables. Check .env file.");
-}
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
