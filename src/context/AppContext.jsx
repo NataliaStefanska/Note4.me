@@ -258,8 +258,13 @@ export function AppProvider({ children }) {
     if (!useSemanticFallback || !search.trim()) { setSemanticResults(null); return; }
     if (vectorSearchTimer.current) clearTimeout(vectorSearchTimer.current);
     vectorSearchTimer.current = setTimeout(async () => {
-      const results = await vsearch(search, notes);
-      setSemanticResults(results);
+      try {
+        const results = await Promise.race([
+          vsearch(search, notes),
+          new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 10000)),
+        ]);
+        setSemanticResults(results);
+      } catch { /* timeout or error — silently ignore */ }
     }, 400);
     return () => { if (vectorSearchTimer.current) clearTimeout(vectorSearchTimer.current); };
   }, [search, notes, useSemanticFallback]);
@@ -512,9 +517,10 @@ export function AppProvider({ children }) {
   }
   function bulkDelete() {
     const ids = bulkSelected;
+    const existingIds = new Set((allNotes[activeSpace] || []).map(n => n.id));
     setAllNotes(p=>({...p,[activeSpace]:(p[activeSpace]||[]).filter(n=>!ids.has(n.id))}));
     if (active && ids.has(active.id)) setActive(null);
-    ids.forEach(id => { if (user) deleteNoteFirestore(user.uid, id).catch(() => {}); });
+    ids.forEach(id => { if (user && existingIds.has(id)) deleteNoteFirestore(user.uid, id).catch(() => {}); });
     setBulkMode(false);
     setBulkSelected(new Set());
   }

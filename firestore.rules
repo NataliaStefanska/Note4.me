@@ -5,9 +5,37 @@ service cloud.firestore {
     match /users/{uid} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
 
-      // Subcollections: spaces, notes, tasks
-      match /{subcollection}/{docId} {
-        allow read, write: if request.auth != null && request.auth.uid == uid;
+      // Spaces: validate schema
+      match /spaces/{spaceId} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow write: if request.auth != null && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['name', 'emoji', 'color', 'order'])
+          && request.resource.data.name is string
+          && request.resource.data.emoji is string
+          && request.resource.data.color is string;
+      }
+
+      // Notes: validate schema
+      match /notes/{noteId} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow write: if request.auth != null && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['title', 'content', 'tags', 'linkedNotes', 'tasks', 'intent', 'updatedAt', 'lastOpened', 'archived', 'spaceId'])
+          && request.resource.data.title is string
+          && request.resource.data.content is string
+          && request.resource.data.tags is list
+          && request.resource.data.spaceId is string;
+        allow delete: if request.auth != null && request.auth.uid == uid;
+      }
+
+      // Tasks: validate schema
+      match /tasks/{taskId} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow write: if request.auth != null && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['text', 'done', 'intent', 'createdAt', 'dueDate', 'spaceId'])
+          && request.resource.data.text is string
+          && request.resource.data.done is bool
+          && request.resource.data.spaceId is string;
+        allow delete: if request.auth != null && request.auth.uid == uid;
       }
     }
 

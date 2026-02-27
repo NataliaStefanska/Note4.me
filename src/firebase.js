@@ -5,16 +5,20 @@ import {
   collection, getDocs, writeBatch,
 } from "firebase/firestore";
 
-// S3 fix: read config from env vars with hardcoded fallback for backward compatibility
+// Firebase config from environment variables (required)
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyDTekf1c-2NqtNyyuIpmHVK6OvLAl6536Q",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "note4-me.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "note4-me",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "note4-me.firebasestorage.app",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "721213164255",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:721213164255:web:61d90785d4569ae98a776a",
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-SXC6RXJYVG",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
+
+if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+  console.error("Missing required Firebase environment variables. Check .env file.");
+}
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
@@ -63,19 +67,23 @@ export async function loadAllData(uid) {
     return null; // New user
   }
 
-  // Load from subcollections
-  const [spacesSnap, notesSnap, tasksSnap] = await Promise.all([
+  // Load from subcollections (partial failure safe)
+  const results = await Promise.allSettled([
     getDocs(collection(db, "users", uid, "spaces")),
     getDocs(collection(db, "users", uid, "notes")),
     getDocs(collection(db, "users", uid, "tasks")),
   ]);
+  const spacesSnap = results[0].status === "fulfilled" ? results[0].value : null;
+  const notesSnap = results[1].status === "fulfilled" ? results[1].value : null;
+  const tasksSnap = results[2].status === "fulfilled" ? results[2].value : null;
+  results.forEach((r, i) => { if (r.status === "rejected") console.warn(`Failed to load ${["spaces","notes","tasks"][i]}:`, r.reason); });
 
   const spaces = [];
-  spacesSnap.forEach(d => spaces.push({ id: d.id, ...d.data() }));
+  if (spacesSnap) spacesSnap.forEach(d => spaces.push({ id: d.id, ...d.data() }));
   spaces.sort((a, b) => (a.order || 0) - (b.order || 0));
 
   const allNotes = {};
-  notesSnap.forEach(d => {
+  if (notesSnap) notesSnap.forEach(d => {
     const note = { id: d.id, ...d.data() };
     const sid = note.spaceId || "s1";
     delete note.spaceId;
@@ -84,7 +92,7 @@ export async function loadAllData(uid) {
   });
 
   const standaloneTasks = {};
-  tasksSnap.forEach(d => {
+  if (tasksSnap) tasksSnap.forEach(d => {
     const task = { id: d.id, ...d.data() };
     const sid = task.spaceId || "s1";
     delete task.spaceId;

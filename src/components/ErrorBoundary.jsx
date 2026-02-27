@@ -28,7 +28,7 @@ export default class ErrorBoundary extends Component {
             An unexpected error occurred. Your data is safe.
           </p>
           <button
-            onClick={() => { this.setState({ hasError: false, error: null }); window.location.href = "/"; }}
+            onClick={() => { this.setState({ hasError: false, error: null }); window.location.replace("/"); }}
             style={{
               padding: "10px 24px", borderRadius: 8, border: "1px solid var(--border, #292524)",
               background: "var(--bg-card, #1C1917)", color: "var(--text-primary, #E7E5E4)",

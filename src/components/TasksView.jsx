@@ -97,8 +97,8 @@ export default function TasksView({ notes, color, allTags, onOpenNote, onCreate,
       </div>
       <div style={s.tvList}>
         {tasks.length === 0 && <div style={s.empty}>{t.tvEmpty}</div>}
-        {tasks.map((tk, i) => (
-          <div key={tk.id + "-" + i} style={s.tvRow}>
+        {tasks.map((tk) => (
+          <div key={tk.id + (tk.standalone ? "-s" : "")} style={s.tvRow}>
             <div style={{ ...s.chk, ...(tk.done?{background:color,borderColor:color}:{}) }} onClick={() => tk.standalone ? onToggleStandaloneTask(tk.id) : onToggleTask(tk.note.id, tk.id)}>
               {tk.done && <span style={{ color:"#fff", fontSize:10 }}>{"\u2713"}</span>}
             </div>

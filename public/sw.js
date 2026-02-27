@@ -26,14 +26,18 @@ self.addEventListener('fetch', event => {
   // Skip Firebase/external API calls — always go to network
   if (url.hostname !== self.location.hostname) return;
 
+  // Only cache successful responses (C5 fix: skip error responses)
+  function cacheIfOk(req, response) {
+    if (!response || response.status !== 200 || response.type === 'opaque') return response;
+    const clone = response.clone();
+    caches.open(CACHE_NAME).then(cache => cache.put(req, clone));
+    return response;
+  }
+
   // For navigation requests — network first, fall back to cached index.html (SPA)
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request).then(response => {
-        const clone = response.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
-        return response;
-      }).catch(() => caches.match('/index.html'))
+      fetch(request).then(r => cacheIfOk(request, r)).catch(() => caches.match('/index.html'))
     );
     return;
   }
@@ -43,11 +47,7 @@ self.addEventListener('fetch', event => {
     event.respondWith(
       caches.match(request).then(cached => {
         if (cached) return cached;
-        return fetch(request).then(response => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
-          return response;
-        });
+        return fetch(request).then(r => cacheIfOk(request, r));
       })
     );
     return;
@@ -55,10 +55,6 @@ self.addEventListener('fetch', event => {
 
   // For everything else — network first, cache fallback
   event.respondWith(
-    fetch(request).then(response => {
-      const clone = response.clone();
-      caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
-      return response;
-    }).catch(() => caches.match(request))
+    fetch(request).then(r => cacheIfOk(request, r)).catch(() => caches.match(request))
   );
 });

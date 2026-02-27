@@ -48,14 +48,13 @@ export default function TiptapEditor({ content, placeholder, editorRef, wrapRef,
     onBlur() {
       setBubblePos(null);
     },
-    onCreate({ editor: ed }) {
-      if (editorRef) editorRef.current = ed;
-    },
+    onCreate() {},
     onDestroy() {
       if (editorRef) editorRef.current = null;
     },
   });
 
+  // H1 fix: single source of truth for editorRef assignment
   useEffect(() => {
     if (editor && editorRef) editorRef.current = editor;
     return () => { if (editorRef) editorRef.current = null; };
