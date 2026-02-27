@@ -24,7 +24,7 @@ export const s = {
   clearBtn:{ background:"transparent", border:"none", fontSize:12, color:"var(--text-faint)", cursor:"pointer", fontFamily:"inherit", textDecoration:"underline" },
   empty:   { color:"var(--text-faint)", fontSize:13, padding:"40px 20px", textAlign:"center" },
   noteRow: { display:"flex", justifyContent:"space-between", gap:16, padding:"13px 10px", borderRadius:8, borderBottom:"1px solid var(--border-light)" },
-  rowAction:{ background:"transparent", border:"none", color:"var(--text-faint)", cursor:"pointer", padding:8, borderRadius:4, display:"flex", alignItems:"center", justifyContent:"center", transition:"color .15s", minWidth:32, minHeight:32 },
+  rowAction:{ background:"transparent", border:"none", color:"var(--text-faint)", cursor:"pointer", padding:8, borderRadius:4, display:"flex", alignItems:"center", justifyContent:"center", transition:"color .15s", minWidth:36, minHeight:36 },
   tinyTag: { fontSize:10, padding:"2px 6px", borderRadius:4, background:"var(--bg-card)", color:"var(--text-muted)" },
   staleBar:{ background:"#FEF3C7", padding:"10px 20px", display:"flex", alignItems:"center", gap:10, fontSize:12, color:"#92400E", flexShrink:0 },
   staleBtn:{ background:"transparent", border:"1px solid #D97706", borderRadius:5, padding:"3px 10px", fontSize:11, cursor:"pointer", color:"#92400E", fontFamily:"inherit" },

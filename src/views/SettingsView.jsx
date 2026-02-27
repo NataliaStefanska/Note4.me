@@ -62,14 +62,20 @@ export default function SettingsView() {
     reader.onload = (ev) => {
       try {
         const data = JSON.parse(ev.target.result);
-        if (data.spaces && data.allNotes) {
-          if (data.spaces) setSpaces(data.spaces);
-          if (data.allNotes) setAllNotes(data.allNotes);
-          if (data.standaloneTasks) setStandaloneTasks(data.standaloneTasks);
-          alert(lang === "pl" ? "Import zakończony!" : "Import complete!");
-        } else {
+        // M3 fix: validate imported data schema
+        if (!data.spaces || !Array.isArray(data.spaces) || !data.allNotes || typeof data.allNotes !== "object") {
           alert(lang === "pl" ? "Nieprawidłowy format pliku" : "Invalid file format");
+          return;
         }
+        const validSpaces = data.spaces.every(sp => sp && typeof sp.id === "string" && typeof sp.name === "string");
+        if (!validSpaces) {
+          alert(lang === "pl" ? "Nieprawidłowa struktura przestrzeni" : "Invalid spaces structure");
+          return;
+        }
+        setSpaces(data.spaces);
+        setAllNotes(data.allNotes);
+        if (data.standaloneTasks && typeof data.standaloneTasks === "object") setStandaloneTasks(data.standaloneTasks);
+        alert(lang === "pl" ? "Import zakończony!" : "Import complete!");
       } catch {
         alert(lang === "pl" ? "Błąd parsowania pliku JSON" : "Error parsing JSON file");
       }

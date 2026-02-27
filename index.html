@@ -2,12 +2,43 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>note.io</title>
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="Note.io - Smart note-taking app with AI-powered suggestions, task management, and semantic search." />
+    <meta name="theme-color" content="#0C0A09" />
+    <link rel="manifest" href="/manifest.json" />
+    <!-- Apple PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Note.io" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <!-- Microsoft -->
+    <meta name="msapplication-TileColor" content="#0C0A09" />
+    <meta name="msapplication-TileImage" content="/icon-192.png" />
+    <title>Note.io</title>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').then(reg => {
+            reg.addEventListener('updatefound', () => {
+              const newSW = reg.installing;
+              if (newSW) {
+                newSW.addEventListener('statechange', () => {
+                  if (newSW.state === 'activated' && navigator.serviceWorker.controller) {
+                    // New version available — dispatch event for UI notification
+                    window.dispatchEvent(new CustomEvent('sw-updated'));
+                  }
+                });
+              }
+            });
+          });
+        });
+      }
+    </script>
   </body>
 </html>
