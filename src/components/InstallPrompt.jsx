@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useIsMobile } from "../hooks/useIsMobile";
 
 function isIos() {
   return /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
@@ -16,19 +17,17 @@ export default function InstallPrompt({ t }) {
     return dismissedAt ? Date.now() - Number(dismissedAt) < 86400000 : false;
   });
   const [updateAvailable, setUpdateAvailable] = useState(false);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
-    // Already installed or dismissed
     if (isStandalone() || dismissed) return;
 
-    // Android/Desktop: capture beforeinstallprompt
     function handlePrompt(e) {
       e.preventDefault();
       setDeferredPrompt(e);
     }
     window.addEventListener("beforeinstallprompt", handlePrompt);
 
-    // iOS: show instructions after short delay
     if (isIos()) {
       const timer = setTimeout(() => setShowIos(true), 3000);
       return () => { clearTimeout(timer); window.removeEventListener("beforeinstallprompt", handlePrompt); };
@@ -37,7 +36,6 @@ export default function InstallPrompt({ t }) {
     return () => window.removeEventListener("beforeinstallprompt", handlePrompt);
   }, [dismissed]);
 
-  // Listen for SW update
   useEffect(() => {
     function handleUpdate() { setUpdateAvailable(true); }
     window.addEventListener("sw-updated", handleUpdate);
@@ -60,10 +58,12 @@ export default function InstallPrompt({ t }) {
     localStorage.setItem("noteio-install-dismissed", String(Date.now()));
   }
 
-  // Update banner
+  // Bottom position: above mobile nav (64px) + gap, or at bottom on desktop
+  const bottomPos = isMobile ? 76 : 20;
+
   if (updateAvailable) {
     return (
-      <div style={styles.banner}>
+      <div style={{ ...styles.banner, bottom: bottomPos }}>
         <span style={styles.text}>{t.updateAvailable}</span>
         <button style={styles.installBtn} onClick={() => window.location.reload()}>
           {t.updateBtn}
@@ -74,10 +74,9 @@ export default function InstallPrompt({ t }) {
 
   if (dismissed || isStandalone()) return null;
 
-  // Android/Desktop install prompt
   if (deferredPrompt) {
     return (
-      <div style={styles.banner}>
+      <div style={{ ...styles.banner, bottom: bottomPos }}>
         <div style={{ flex:1, minWidth:0 }}>
           <div style={styles.title}>{t.installTitle}</div>
           <div style={styles.desc}>{t.installDesc}</div>
@@ -88,10 +87,9 @@ export default function InstallPrompt({ t }) {
     );
   }
 
-  // iOS instructions
   if (showIos) {
     return (
-      <div style={styles.banner}>
+      <div style={{ ...styles.banner, bottom: bottomPos }}>
         <div style={{ flex:1, minWidth:0 }}>
           <div style={styles.title}>{t.installTitle}</div>
           <div style={styles.desc}>
@@ -113,7 +111,6 @@ export default function InstallPrompt({ t }) {
 const styles = {
   banner: {
     position: "fixed",
-    bottom: 80,
     left: 16,
     right: 16,
     maxWidth: 440,
@@ -121,10 +118,10 @@ const styles = {
     background: "var(--bg-surface)",
     border: "1px solid var(--border)",
     borderRadius: 12,
-    padding: "12px 16px",
+    padding: "10px 14px",
     display: "flex",
     alignItems: "center",
-    gap: 12,
+    gap: 10,
     boxShadow: "0 8px 32px rgba(0,0,0,.25)",
     zIndex: 700,
     fontFamily: "inherit",
