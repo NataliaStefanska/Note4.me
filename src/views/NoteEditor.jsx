@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useApp } from "../context/AppContext";
 import { useIsMobile } from "../hooks/useIsMobile";
 import { daysSince } from "../constants/data";
@@ -32,6 +32,8 @@ export default function NoteEditor() {
   const [showVersions, setShowVersions] = useState(false);
   const [headings, setHeadings] = useState([]);
   const [showToc, setShowToc] = useState(false);
+  const headingsKeyRef = useRef('');
+  const headingsTimerRef = useRef(null);
   const [showFolderPicker, setShowFolderPicker] = useState(false);
   const [newFolder, setNewFolder] = useState("");
   const [showRefInput, setShowRefInput] = useState(false);
@@ -61,6 +63,38 @@ export default function NoteEditor() {
     }
     setAiLoading(false);
   }, [active, allNotes, activeSpace]);
+
+  // Extract headings from editor (debounced, outside of Tiptap callbacks)
+  const extractHeadingsFromEditor = useCallback(() => {
+    if (headingsTimerRef.current) clearTimeout(headingsTimerRef.current);
+    headingsTimerRef.current = setTimeout(() => {
+      const ed = editorRef.current;
+      if (!ed) return;
+      const h = [];
+      ed.state.doc.descendants((node, pos) => {
+        if (node.type.name === 'heading') {
+          h.push({ level: node.attrs.level, text: node.textContent, pos });
+        }
+      });
+      const key = h.map(x => `${x.level}:${x.text}:${x.pos}`).join('|');
+      if (key !== headingsKeyRef.current) {
+        headingsKeyRef.current = key;
+        setHeadings(h);
+      }
+    }, 400);
+  }, [editorRef]);
+
+  // Wrap triggerAutoSave to also extract headings
+  const handleEditorUpdate = useCallback(() => {
+    triggerAutoSave();
+    extractHeadingsFromEditor();
+  }, [triggerAutoSave, extractHeadingsFromEditor]);
+
+  // Extract headings on mount
+  useEffect(() => {
+    const t = setTimeout(extractHeadingsFromEditor, 200);
+    return () => { clearTimeout(t); if (headingsTimerRef.current) clearTimeout(headingsTimerRef.current); };
+  }, [active?.id, extractHeadingsFromEditor]);
 
   if (!active) return null;
 
@@ -135,9 +169,8 @@ export default function NoteEditor() {
               placeholder={t.edContentPh}
               editorRef={editorRef}
               wrapRef={contentWrapRef}
-              onUpdate={triggerAutoSave}
+              onUpdate={handleEditorUpdate}
               onLinkSearch={setLinkSearch}
-              onHeadingsChange={setHeadings}
               isMobile={isMobile}
             />
             {linkSearch && (

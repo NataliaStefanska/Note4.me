@@ -2,12 +2,10 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import Placeholder from '@tiptap/extension-placeholder';
-import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 
-export default function TiptapEditor({ content, placeholder, editorRef, wrapRef, onUpdate, onLinkSearch, onHeadingsChange, isMobile }) {
+export default function TiptapEditor({ content, placeholder, editorRef, wrapRef, onUpdate, onLinkSearch, isMobile }) {
   const [bubblePos, setBubblePos] = useState(null);
-  const headingsTimerRef = useRef(null);
-  const prevHeadingsRef = useRef('');
 
   const updateBubble = useCallback((ed) => {
     if (!ed) return;
@@ -27,47 +25,21 @@ export default function TiptapEditor({ content, placeholder, editorRef, wrapRef,
     } catch { setBubblePos(null); }
   }, []);
 
-  // Stable ref for onHeadingsChange to avoid re-render cascades
-  const onHeadingsChangeRef = useRef(onHeadingsChange);
-  onHeadingsChangeRef.current = onHeadingsChange;
-
-  const scheduleHeadingsExtract = useCallback((ed) => {
-    if (!onHeadingsChangeRef.current || !ed) return;
-    if (headingsTimerRef.current) clearTimeout(headingsTimerRef.current);
-    headingsTimerRef.current = setTimeout(() => {
-      const headings = [];
-      ed.state.doc.descendants((node, pos) => {
-        if (node.type.name === 'heading') {
-          headings.push({ level: node.attrs.level, text: node.textContent, pos });
-        }
-      });
-      // Only update state if headings actually changed
-      const key = headings.map(h => `${h.level}:${h.text}:${h.pos}`).join('|');
-      if (key !== prevHeadingsRef.current) {
-        prevHeadingsRef.current = key;
-        onHeadingsChangeRef.current(headings);
-      }
-    }, 300);
-  }, []);
-
-  const extensions = useMemo(() => [
-    StarterKit.configure({
-      heading: { levels: [1, 2, 3] },
-    }),
-    Underline,
-    Placeholder.configure({
-      placeholder: placeholder || '',
-    }),
-  ], [placeholder]);
-
   const editor = useEditor({
-    extensions,
+    extensions: [
+      StarterKit.configure({
+        heading: { levels: [1, 2, 3] },
+      }),
+      Underline,
+      Placeholder.configure({
+        placeholder: placeholder || '',
+      }),
+    ],
     content: content || '',
     onUpdate({ editor: ed }) {
       onUpdate?.();
       detectLinkSearch(ed);
       updateBubble(ed);
-      scheduleHeadingsExtract(ed);
     },
     onSelectionUpdate({ editor: ed }) {
       detectLinkSearch(ed);
@@ -76,9 +48,7 @@ export default function TiptapEditor({ content, placeholder, editorRef, wrapRef,
     onBlur() {
       setBubblePos(null);
     },
-    onCreate({ editor: ed }) {
-      scheduleHeadingsExtract(ed);
-    },
+    onCreate() {},
     onDestroy() {
       if (editorRef) editorRef.current = null;
     },
@@ -89,13 +59,6 @@ export default function TiptapEditor({ content, placeholder, editorRef, wrapRef,
     if (editor && editorRef) editorRef.current = editor;
     return () => { if (editorRef) editorRef.current = null; };
   }, [editor, editorRef]);
-
-  // Cleanup heading timer on unmount
-  useEffect(() => {
-    return () => {
-      if (headingsTimerRef.current) clearTimeout(headingsTimerRef.current);
-    };
-  }, []);
 
   function detectLinkSearch(ed) {
     if (!onLinkSearch || !ed) return;
