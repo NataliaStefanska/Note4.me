@@ -156,7 +156,8 @@ async function migrateToSubcollections(uid, oldData) {
         tags: note.tags || [], linkedNotes: note.linkedNotes || [],
         tasks: note.tasks || [], intent: note.intent || "",
         updatedAt: note.updatedAt || "", lastOpened: note.lastOpened || "",
-        archived: note.archived || false, spaceId,
+        archived: note.archived || false, folder: note.folder || "",
+        references: note.references || [], spaceId,
       });
     }
   }
@@ -235,6 +236,7 @@ function pickNoteFields(note) {
     tasks: note.tasks || [], intent: note.intent || "",
     updatedAt: note.updatedAt || "", lastOpened: note.lastOpened || "",
     archived: note.archived || false, folder: note.folder || "",
+    references: note.references || [],
   };
 }
 

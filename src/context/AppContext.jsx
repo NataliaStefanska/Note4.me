@@ -3,7 +3,7 @@ import {
   loadAllData, saveUserPrefs, deleteNoteFirestore, deleteTaskFirestore,
   saveAllSpaces, saveAllNotes, saveAllTasks,
 } from "../firebase";
-import { getToday, INITIAL_SPACES, INITIAL_NOTES, daysSince } from "../constants/data";
+import { getToday, INITIAL_SPACES, INITIAL_NOTES, daysSince, createNote } from "../constants/data";
 import { textPreview } from "../utils/helpers";
 import { initEmbedder, indexNotes, vectorSearch as vsearch, isEmbedderReady } from "../utils/vectorSearch";
 import Fuse from "fuse.js";
@@ -387,15 +387,13 @@ export function AppProvider({ children }) {
   function createNote()   { setShowIntent(true); }
   function createTask()   { setShowTask(true); }
   function quickCapture() {
-    const n={ id:"n"+Date.now(), title:"", content:"", tags:[], linkedNotes:[], tasks:[], intent:"",
-      updatedAt:getToday().toISOString().split("T")[0], lastOpened:getToday().toISOString().split("T")[0] };
+    const n = createNote();
     setAllNotes(p=>({...p,[activeSpace]:[n,...(p[activeSpace]||[])]}));
     setActive({...n});
     setTimeout(()=>{ if(titleRef.current) titleRef.current.focus(); },80);
   }
   function handleIntent(intent) {
-    const n={ id:"n"+Date.now(), title:"", content:"", tags:[], linkedNotes:[], tasks:[], intent,
-      updatedAt:getToday().toISOString().split("T")[0], lastOpened:getToday().toISOString().split("T")[0] };
+    const n = createNote({ intent });
     setAllNotes(p=>({...p,[activeSpace]:[n,...(p[activeSpace]||[])]}));
     setActive({...n}); setShowIntent(false);
     setTimeout(()=>{ if(titleRef.current) titleRef.current.focus(); },80);
@@ -410,6 +408,11 @@ export function AppProvider({ children }) {
     setStandaloneTasks(prev=>({...prev,[activeSpace]:(prev[activeSpace]||[]).map(t=>t.id===taskId?{...t,dueDate}:t)}));
   }
   function openNote(note) {
+    // Bug #6 fix: flush pending autoSave for current note before switching
+    if (activeRef.current) {
+      if (autoSaveTimer.current) { clearTimeout(autoSaveTimer.current); autoSaveTimer.current = null; }
+      saveNoteImpl(true);
+    }
     const opened = {...note, lastOpened:getToday().toISOString().split("T")[0]};
     setActive(opened);
     setAllNotes(p=>({...p,[activeSpace]:(p[activeSpace]||[]).map(n=>n.id===opened.id?{...n,lastOpened:opened.lastOpened}:n)}));
@@ -448,7 +451,11 @@ export function AppProvider({ children }) {
     }
   }, [setShowSaveToast]);
 
-  function saveNote(silent) { saveNoteImpl(silent); }
+  function saveNote(silent) {
+    // Cancel pending autoSave to prevent stale/duplicate writes
+    if (autoSaveTimer.current) { clearTimeout(autoSaveTimer.current); autoSaveTimer.current = null; }
+    saveNoteImpl(silent);
+  }
 
   function triggerAutoSave() {
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
