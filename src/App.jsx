@@ -24,7 +24,7 @@ const SettingsView = lazy(() => import("./views/SettingsView"));
 
 export default function App() {
   const {
-    user, authLoading, t, space, spaces, setSpaces, active,
+    user, authLoading, loginError, t, space, spaces, setSpaces, active,
     showIntent, showTask, setShowTask, showSpaceMgr, setShowSpaceMgr,
     showDeleteConfirm, setShowDeleteConfirm, showSaveToast,
     showDrawer, setShowDrawer, filterTag,
@@ -54,7 +54,7 @@ export default function App() {
   );
 
   // Not logged in
-  if (!user) return <LoginScreen onLogin={handleLogin} t={t} />;
+  if (!user) return <LoginScreen onLogin={handleLogin} loginError={loginError} t={t} />;
 
   function handleIntentConfirm(intent) {
     handleIntent(intent);
@@ -132,11 +132,12 @@ export default function App() {
                 <rect x="2" y="12.2" width="9" height="1.8" rx=".9" fill="#E7E5E4"/>
               </svg>
             </button>
-            <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+            <button style={{ display:"flex", alignItems:"center", gap:6, background:"transparent", border:"none", cursor:"pointer", padding:0, fontFamily:"inherit" }} onClick={()=>setShowDrawer(true)}>
               <span style={{ fontSize:16 }}>{space.emoji}</span>
               <span style={{ fontSize:15, fontWeight:600, color:space.color }}>{space.name}</span>
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 3.5L5 6.5L8 3.5" stroke={space.color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
               {filterTag && <span style={{ ...s.tinyTag, background:space.color+"22", color:space.color }}>{filterTag}</span>}
-            </div>
+            </button>
             {user.photoURL
               ? <img src={user.photoURL} alt="" referrerPolicy="no-referrer" style={s.avatar} onClick={()=>navigate("/settings")} />
               : <div style={s.avatar} onClick={()=>navigate("/settings")}>{(user.displayName||"U")[0]}</div>

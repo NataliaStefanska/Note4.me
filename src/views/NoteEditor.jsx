@@ -32,6 +32,7 @@ export default function NoteEditor() {
   const [showVersions, setShowVersions] = useState(false);
   const [headings, setHeadings] = useState([]);
   const [showToc, setShowToc] = useState(false);
+  const headingsKeyRef = useRef('');
   const [showFolderPicker, setShowFolderPicker] = useState(false);
   const [newFolder, setNewFolder] = useState("");
   const [showRefInput, setShowRefInput] = useState(false);
@@ -61,6 +62,28 @@ export default function NoteEditor() {
     }
     setAiLoading(false);
   }, [active, allNotes, activeSpace]);
+
+  // Extract headings from editor via interval (completely independent of save flow)
+  useEffect(() => {
+    function extractHeadings() {
+      const ed = editorRef.current;
+      if (!ed) return;
+      const h = [];
+      ed.state.doc.descendants((node, pos) => {
+        if (node.type.name === 'heading') {
+          h.push({ level: node.attrs.level, text: node.textContent, pos });
+        }
+      });
+      const key = h.map(x => `${x.level}:${x.text}:${x.pos}`).join('|');
+      if (key !== headingsKeyRef.current) {
+        headingsKeyRef.current = key;
+        setHeadings(h);
+      }
+    }
+    const interval = setInterval(extractHeadings, 1000);
+    const initial = setTimeout(extractHeadings, 300);
+    return () => { clearInterval(interval); clearTimeout(initial); };
+  }, [active?.id, editorRef]);
 
   if (!active) return null;
 
@@ -137,7 +160,6 @@ export default function NoteEditor() {
               wrapRef={contentWrapRef}
               onUpdate={triggerAutoSave}
               onLinkSearch={setLinkSearch}
-              onHeadingsChange={setHeadings}
               isMobile={isMobile}
             />
             {linkSearch && (

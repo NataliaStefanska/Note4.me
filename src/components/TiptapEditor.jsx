@@ -4,19 +4,8 @@ import Underline from '@tiptap/extension-underline';
 import Placeholder from '@tiptap/extension-placeholder';
 import { useEffect, useState, useCallback } from 'react';
 
-export default function TiptapEditor({ content, placeholder, editorRef, wrapRef, onUpdate, onLinkSearch, onHeadingsChange, isMobile }) {
+export default function TiptapEditor({ content, placeholder, editorRef, wrapRef, onUpdate, onLinkSearch, isMobile }) {
   const [bubblePos, setBubblePos] = useState(null);
-
-  const extractHeadings = useCallback((ed) => {
-    if (!onHeadingsChange || !ed) return;
-    const headings = [];
-    ed.state.doc.descendants((node, pos) => {
-      if (node.type.name === 'heading') {
-        headings.push({ level: node.attrs.level, text: node.textContent, pos });
-      }
-    });
-    onHeadingsChange(headings);
-  }, [onHeadingsChange]);
 
   const updateBubble = useCallback((ed) => {
     if (!ed) return;
@@ -51,7 +40,6 @@ export default function TiptapEditor({ content, placeholder, editorRef, wrapRef,
       onUpdate?.();
       detectLinkSearch(ed);
       updateBubble(ed);
-      extractHeadings(ed);
     },
     onSelectionUpdate({ editor: ed }) {
       detectLinkSearch(ed);
@@ -60,9 +48,7 @@ export default function TiptapEditor({ content, placeholder, editorRef, wrapRef,
     onBlur() {
       setBubblePos(null);
     },
-    onCreate({ editor: ed }) {
-      extractHeadings(ed);
-    },
+    onCreate() {},
     onDestroy() {
       if (editorRef) editorRef.current = null;
     },

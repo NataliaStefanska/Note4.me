@@ -60,9 +60,9 @@ export default function DueDatePicker({ value, onChange, t }) {
       </button>
       {open && (
         <div style={{
-          position: "absolute", bottom: "100%", right: 0, marginBottom: 4,
+          position: "absolute", top: "100%", right: 0, marginTop: 4,
           background: "var(--bg-surface)", border: "1px solid var(--border)",
-          borderRadius: 10, padding: 8, zIndex: 50, minWidth: 200,
+          borderRadius: 10, padding: 8, zIndex: 500, minWidth: 200,
           boxShadow: "0 8px 24px var(--shadow)",
           display: "flex", flexDirection: "column", gap: 6,
         }}>

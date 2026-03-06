@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged } from "firebase/auth";
 import {
   initializeFirestore, persistentLocalCache, doc, setDoc, getDoc, deleteDoc,
   collection, getDocs, writeBatch,
@@ -28,8 +28,27 @@ export const db = initializeFirestore(app, {
 const googleProvider = new GoogleAuthProvider();
 
 export async function loginWithGoogle() {
-  const result = await signInWithPopup(auth, googleProvider);
-  return result.user;
+  // Mobile browsers often block popups — use redirect as fallback
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
+    return result.user;
+  } catch (e) {
+    if (e.code === "auth/popup-blocked" || e.code === "auth/popup-closed-by-browser" || e.code === "auth/cancelled-popup-request") {
+      await signInWithRedirect(auth, googleProvider);
+      return null;
+    }
+    throw e;
+  }
+}
+
+export async function handleRedirectResult() {
+  try {
+    const result = await getRedirectResult(auth);
+    return result?.user || null;
+  } catch (e) {
+    console.warn("Redirect login failed:", e?.message || e);
+    return null;
+  }
 }
 
 export async function logout() {

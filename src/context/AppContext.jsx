@@ -19,7 +19,7 @@ export function useApp() {
 
 export function AppProvider({ children }) {
   // Consume sub-contexts
-  const { user, authLoading, handleLogin, handleLogout } = useAuth();
+  const { user, authLoading, loginError, handleLogin, handleLogout } = useAuth();
   const {
     lang, setLang, theme, setTheme, t,
     showIntent, setShowIntent, showTask, setShowTask,
@@ -406,6 +406,15 @@ export function AppProvider({ children }) {
       return updated;
     });
   }
+  function editStandaloneTask(taskId, newText) {
+    setStandaloneTasks(prev=>({...prev,[activeSpace]:(prev[activeSpace]||[]).map(t=>t.id===taskId?{...t,text:newText}:t)}));
+  }
+  function editNoteTask(noteId, taskId, newText) {
+    setAllNotes(prev=>({...prev,[activeSpace]:(prev[activeSpace]||[]).map(n=>n.id===noteId?{...n,tasks:n.tasks.map(tk=>tk.id===taskId?{...tk,text:newText}:tk)}:n)}));
+    if (active && active.id === noteId) {
+      setActive(p=>({...p,tasks:p.tasks.map(tk=>tk.id===taskId?{...tk,text:newText}:tk)}));
+    }
+  }
   function setTaskDueDate(taskId, dueDate) {
     setActive(p=>{
       const updated = {...p, tasks:p.tasks.map(tk=>tk.id===taskId?{...tk,dueDate}:tk)};
@@ -571,7 +580,7 @@ export function AppProvider({ children }) {
 
   const value = {
     // from AuthContext
-    user, authLoading, handleLogin, handleLogout,
+    user, authLoading, loginError, handleLogin, handleLogout,
     // from UIContext
     lang, setLang, theme, setTheme, t,
     showIntent, setShowIntent, showTask, setShowTask,
@@ -603,7 +612,7 @@ export function AppProvider({ children }) {
     // actions
     switchSpace, createNote, createTask, quickCapture, handleIntent, handleTaskIntent,
     openNote, saveNote, triggerAutoSave, toggleTask, toggleTaskInList, toggleStandaloneTask,
-    addTask, removeTask, setTaskDueDate, setStandaloneTaskDueDate,
+    addTask, removeTask, setTaskDueDate, setStandaloneTaskDueDate, editStandaloneTask, editNoteTask,
     handleLinkSelect, toggleTag, setNoteFolder, reorderNotes, reorderTasks, deleteNote, archiveNote, unarchiveNote,
     exportNoteMd,
   };
