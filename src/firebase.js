@@ -201,8 +201,7 @@ export async function deleteSpaceFirestore(uid, spaceId) {
 }
 
 export async function saveNoteFirestore(uid, note, spaceId) {
-  const { id, ...data } = note;
-  await setDoc(doc(db, "users", uid, "notes", id), { ...data, spaceId }, { merge: true });
+  await setDoc(doc(db, "users", uid, "notes", note.id), { ...pickNoteFields(note), spaceId }, { merge: true });
 }
 
 export async function deleteNoteFirestore(uid, noteId) {
@@ -210,8 +209,7 @@ export async function deleteNoteFirestore(uid, noteId) {
 }
 
 export async function saveTaskFirestore(uid, task, spaceId) {
-  const { id, ...data } = task;
-  await setDoc(doc(db, "users", uid, "tasks", id), { ...data, spaceId }, { merge: true });
+  await setDoc(doc(db, "users", uid, "tasks", task.id), { ...pickTaskFields(task), spaceId }, { merge: true });
 }
 
 export async function deleteTaskFirestore(uid, taskId) {
@@ -229,20 +227,42 @@ export async function saveAllSpaces(uid, spaces) {
   await batch.commit();
 }
 
+// Only send fields allowed by Firestore rules — prevents unknown fields from breaking batch writes
+function pickNoteFields(note) {
+  return {
+    title: note.title || "", content: note.content || "",
+    tags: note.tags || [], linkedNotes: note.linkedNotes || [],
+    tasks: note.tasks || [], intent: note.intent || "",
+    updatedAt: note.updatedAt || "", lastOpened: note.lastOpened || "",
+    archived: note.archived || false, folder: note.folder || "",
+  };
+}
+
+function pickTaskFields(task) {
+  return {
+    text: task.text || "", done: task.done || false,
+    intent: task.intent || "", createdAt: task.createdAt || "",
+    dueDate: task.dueDate || "", archived: task.archived || false,
+  };
+}
+
 export async function saveAllNotes(uid, notes, spaceId) {
-  const batch = writeBatch(db);
-  notes.forEach(note => {
-    const { id, ...data } = note;
-    batch.set(doc(db, "users", uid, "notes", id), { ...data, spaceId }, { merge: true });
-  });
-  await batch.commit();
+  // Firestore batch limit is 500 operations
+  for (let i = 0; i < notes.length; i += 499) {
+    const batch = writeBatch(db);
+    notes.slice(i, i + 499).forEach(note => {
+      batch.set(doc(db, "users", uid, "notes", note.id), { ...pickNoteFields(note), spaceId }, { merge: true });
+    });
+    await batch.commit();
+  }
 }
 
 export async function saveAllTasks(uid, tasks, spaceId) {
-  const batch = writeBatch(db);
-  tasks.forEach(task => {
-    const { id, ...data } = task;
-    batch.set(doc(db, "users", uid, "tasks", id), { ...data, spaceId }, { merge: true });
-  });
-  await batch.commit();
+  for (let i = 0; i < tasks.length; i += 499) {
+    const batch = writeBatch(db);
+    tasks.slice(i, i + 499).forEach(task => {
+      batch.set(doc(db, "users", uid, "tasks", task.id), { ...pickTaskFields(task), spaceId }, { merge: true });
+    });
+    await batch.commit();
+  }
 }

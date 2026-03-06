@@ -7,6 +7,7 @@ export default function TasksPage() {
     t, notes, space, allTags, standaloneTasks, activeSpace,
     openNote, createTask, toggleTaskInList, toggleStandaloneTask,
     setAllNotes, setStandaloneTaskDueDate, editStandaloneTask, editNoteTask,
+    archiveDoneTasks,
   } = useApp();
   const navigate = useNavigate();
 
@@ -31,6 +32,7 @@ export default function TasksPage() {
       onSetStandaloneDueDate={(taskId, dueDate) => setStandaloneTaskDueDate(taskId, dueDate)}
       onEditStandaloneTask={(taskId, newText) => editStandaloneTask(taskId, newText)}
       onEditNoteTask={(noteId, taskId, newText) => editNoteTask(noteId, taskId, newText)}
+      onArchiveDoneTasks={archiveDoneTasks}
       t={t}
     />
   );

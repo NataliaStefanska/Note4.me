@@ -18,7 +18,7 @@ function DueBadge({ dueDate, done }) {
 }
 
 function CelebrationModal({ taskText, onClose }) {
-  const stableClose = useCallback(onClose, []);
+  const stableClose = useCallback(() => onClose(), [onClose]);
   useEffect(() => {
     const t = setTimeout(stableClose, 2800);
     return () => clearTimeout(t);
@@ -61,7 +61,7 @@ function CelebrationModal({ taskText, onClose }) {
   );
 }
 
-export default function TasksView({ notes, color, allTags, onOpenNote, onCreate, onToggleTask, standaloneTasks, onToggleStandaloneTask, onSetDueDate, onSetStandaloneDueDate, onEditStandaloneTask, onEditNoteTask, t }) {
+export default function TasksView({ notes, color, allTags, onOpenNote, onCreate, onToggleTask, standaloneTasks, onToggleStandaloneTask, onSetDueDate, onSetStandaloneDueDate, onEditStandaloneTask, onEditNoteTask, onArchiveDoneTasks, t }) {
   const [tag, setTag] = useState(null);
   const [sort, setSort] = useState("desc");
   const [from, setFrom] = useState("");
@@ -81,12 +81,12 @@ export default function TasksView({ notes, color, allTags, onOpenNote, onCreate,
       return mt && mf && mtd;
     })
     .flatMap(n => n.tasks
-      .filter(tk => showDone || !tk.done)
+      .filter(tk => !tk.archived && (showDone || !tk.done))
       .map(tk => ({ ...tk, noteTitle:n.title, noteDate:n.updatedAt, noteTags:n.tags, note:n, standalone:false }))
     );
 
   const standaloneItems = (standaloneTasks || [])
-    .filter(tk => showDone || !tk.done)
+    .filter(tk => !tk.archived && (showDone || !tk.done))
     .filter(tk => {
       const mf = from ? tk.createdAt >= from : true;
       const mtd = to ? tk.createdAt <= to : true;
@@ -159,6 +159,15 @@ export default function TasksView({ notes, color, allTags, onOpenNote, onCreate,
           <button style={{ ...s.ctrlBtn, ...(showDone?{}:{color,background:color+"15"}) }} onClick={() => setShowDone(v => !v)}>
             {showDone ? t.tvWithDone : t.tvOpenOnly}
           </button>
+          {doneN > 0 && onArchiveDoneTasks && (
+            <button
+              style={{ ...s.ctrlBtn, color: "#EF4444", background: "#EF444412", border: "1px solid #EF444422", fontSize: 11 }}
+              onClick={onArchiveDoneTasks}
+              title={t.tvArchiveDone || "Archiwizuj ukończone"}
+            >
+              {"\uD83D\uDCE6"} {t.tvArchiveDone || "Archiwizuj ukończone"} ({doneN})
+            </button>
+          )}
         </div>
         {showDate && (
           <div style={{ display:"flex", gap:12, flexWrap:"wrap", alignItems:"center" }}>
@@ -206,7 +215,7 @@ export default function TasksView({ notes, color, allTags, onOpenNote, onCreate,
                       onClick={() => !tk.done && startEdit(tk)}
                       title={tk.done ? "" : (t.smEdit || "Edytuj")}
                     >
-                      {tk.text}
+                      {tk.done ? "\u2705 " : "\u{1F4CB} "}{tk.text}
                     </span>
                   )}
                   <DueBadge dueDate={tk.dueDate} done={tk.done}/>
