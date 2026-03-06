@@ -31,10 +31,10 @@ export function AppProvider({ children }) {
     autoSaveStatus, setAutoSaveStatus,
   } = useUI();
 
-  // Data state
-  const [spaces,      setSpaces]      = useState(INITIAL_SPACES);
+  // Data state — start empty; INITIAL data is only set for logged-out demo mode
+  const [spaces,      setSpaces]      = useState([]);
   const [activeSpace, setActiveSpace] = useState("s1");
-  const [allNotes,    setAllNotes]    = useState(INITIAL_NOTES);
+  const [allNotes,    setAllNotes]    = useState({});
   const [standaloneTasks, setStandaloneTasks] = useState({});
   const [active,      setActive]      = useState(null);
   const [search,      setSearch]      = useState("");
@@ -95,30 +95,47 @@ export function AppProvider({ children }) {
   useEffect(() => {
     if (authLoading) return;
     if (user) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- sync status tracks external Firebase load
+      // Reset to empty state first — prevents stale INITIAL data from showing
+      dataLoadedRef.current = false;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional reset before async load
+      setSpaces([]);
+      setAllNotes({});
+      setStandaloneTasks({});
       setSyncStatus("loading");
       loadAllData(user.uid).then(data => {
-        if (data) {
-          if (data.spaces) setSpaces(data.spaces);
-          if (data.activeSpace) setActiveSpace(data.activeSpace);
-          if (data.allNotes) setAllNotes(data.allNotes);
-          if (data.standaloneTasks) setStandaloneTasks(data.standaloneTasks);
-          if (data.lang) setLang(data.lang);
-        }
-        // Mark data as loaded so sync can start — prevents INITIAL_NOTES from overwriting real data
+        // Always set state from Firestore — use INITIAL only for brand new users
+        const loadedSpaces = data?.spaces || INITIAL_SPACES;
+        const loadedActiveSpace = data?.activeSpace || "s1";
+        const loadedNotes = data?.allNotes || INITIAL_NOTES;
+        const loadedTasks = data?.standaloneTasks || {};
+        const loadedLang = data?.lang || "pl";
+
+        setSpaces(loadedSpaces);
+        setActiveSpace(loadedActiveSpace);
+        setAllNotes(loadedNotes);
+        setStandaloneTasks(loadedTasks);
+        if (data?.lang) setLang(loadedLang);
+
+        // Set prev refs to loaded state so sync only saves future changes
+        prevSpaces.current = loadedSpaces;
+        prevActiveSpace.current = loadedActiveSpace;
+        prevAllNotes.current = loadedNotes;
+        prevStandaloneTasks.current = loadedTasks;
+        prevLang.current = loadedLang;
+
+        // Now allow sync to run
         dataLoadedRef.current = true;
-        // Reset prev refs to the loaded state so the first sync doesn't re-save loaded data
-        prevAllNotes.current = data?.allNotes || allNotes;
-        prevStandaloneTasks.current = data?.standaloneTasks || standaloneTasks;
-        prevSpaces.current = data?.spaces || spaces;
-        prevLang.current = data?.lang || lang;
-        prevActiveSpace.current = data?.activeSpace || activeSpace;
         setSyncStatus("synced");
       }).catch(err => {
         console.warn("Firebase load failed, using local data:", err?.message || err);
+        // On failure, show demo data so app is usable
+        setSpaces(INITIAL_SPACES);
+        setAllNotes(INITIAL_NOTES);
+        dataLoadedRef.current = false; // Don't sync demo data
         setSyncStatus(navigator.onLine ? "error" : "offline");
       });
     } else {
+      // Logged out — show demo data
       dataLoadedRef.current = false;
       prevAllNotes.current = null;
       prevStandaloneTasks.current = null;
@@ -228,7 +245,7 @@ export function AppProvider({ children }) {
 
   // Derived values
   const notes  = useMemo(() => allNotes[activeSpace] || [], [allNotes, activeSpace]);
-  const space  = useMemo(() => spaces.find(sp => sp.id===activeSpace) || spaces[0], [spaces, activeSpace]);
+  const space  = useMemo(() => spaces.find(sp => sp.id===activeSpace) || spaces[0] || { id:"s1", name:"", emoji:"", color:"#6366F1" }, [spaces, activeSpace]);
   const allTags= useMemo(() => [...new Set([...notes.flatMap(n=>n.tags), ...(active ? active.tags : [])])], [notes, active]);
   const allFolders = useMemo(() => [...new Set(notes.map(n=>n.folder).filter(Boolean))].sort(), [notes]);
   const staleN = useMemo(() => notes.filter(n=>!n.archived&&daysSince(n.lastOpened)>=30).length, [notes]);
